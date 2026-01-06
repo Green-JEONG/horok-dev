@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { ChevronDown } from "lucide-react";
+import { useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 
 type SortType = "latest" | "views" | "likes" | "comments";
 
@@ -16,12 +17,20 @@ export default function PostListHeader() {
   const [sort, setSort] = useState<SortType>("latest");
   const [open, setOpen] = useState(false);
 
-  return (
-    <div className="flex items-center justify-between border-b pb-3">
-      {/* 왼쪽: 카테고리 위치 */}
-      <h2 className="text-sm font-semibold text-foreground">전체</h2>
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
-      {/* 오른쪽: 정렬 드롭다운 */}
+  const keyword = searchParams.get("keyword");
+  const isPostDetail = pathname.startsWith("/posts");
+
+  return (
+    <div className="flex items-center justify-between pb-3">
+      {/* 왼쪽 타이틀 */}
+      <h2 className="text-sm font-semibold text-foreground">
+        {keyword ? `#${keyword}` : isPostDetail ? "피드" : "전체"}
+      </h2>
+
+      {/* 정렬 */}
       <div className="relative">
         <button
           type="button"
@@ -33,10 +42,7 @@ export default function PostListHeader() {
         </button>
 
         {open && (
-          <ul
-            className="absolute right-0 mt-2 w-20.5
-              rounded-md border bg-background shadow-md text-sm"
-          >
+          <ul className="absolute right-0 mt-2 w-20.5 rounded-md border bg-background shadow-md text-sm">
             {(Object.keys(SORT_LABEL) as SortType[]).map((key) => (
               <li key={key}>
                 <button

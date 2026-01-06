@@ -250,7 +250,7 @@ export default function LoginModal({ open, onClose }: Props) {
               </div>
 
               <button
-                type="button"
+                type="submit"
                 onClick={() => setStep("signup")}
                 className="mt-6 w-full rounded-md bg-green-500 py-2 text-sm font-semibold text-primary-foreground"
               >
@@ -261,7 +261,13 @@ export default function LoginModal({ open, onClose }: Props) {
 
           {/* ===== 회원가입 ===== */}
           {step === "signup" && (
-            <div className="space-y-3">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleCredentialsLogin();
+              }}
+              className="space-y-3"
+            >
               <input
                 value={signupEmail}
                 onChange={(e) => setSignupEmail(e.target.value)}
@@ -292,14 +298,14 @@ export default function LoginModal({ open, onClose }: Props) {
               {error && <p className="text-xs text-red-500">{error}</p>}
 
               <button
-                type="button"
+                type="submit"
                 onClick={handleSignup}
                 disabled={loading}
                 className="mt-4 w-full rounded-md bg-green-500 py-2 text-sm font-semibold text-white disabled:opacity-50"
               >
                 {loading ? "가입 중..." : "회원가입"}
               </button>
-            </div>
+            </form>
           )}
         </div>
       </div>

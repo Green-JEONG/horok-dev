@@ -3,8 +3,9 @@
 import { signOut } from "next-auth/react";
 import Image from "next/image";
 import { Circle, CircleCheckBig, Settings } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import AccountSettingsModal from "@/components/mypage/AccountSettingsModal";
 
 type Props = {
   open: boolean;
@@ -13,6 +14,7 @@ type Props = {
 
 export default function MyPageDrawer({ open, onClose }: Props) {
   const { data: session } = useSession();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // ESC 닫기
   useEffect(() => {
@@ -21,6 +23,11 @@ export default function MyPageDrawer({ open, onClose }: Props) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
+
+  // 드로어가 닫히면 설정 모달도 닫기(자연스럽게)
+  useEffect(() => {
+    if (!open) setSettingsOpen(false);
+  }, [open]);
 
   if (!open) return null;
 
@@ -31,18 +38,25 @@ export default function MyPageDrawer({ open, onClose }: Props) {
         type="button"
         aria-label="마이페이지 닫기"
         onClick={onClose}
-        className="absolute inset-0 bg-black/40 cursor-default"
+        className="absolute inset-0 bg-black/50 cursor-default"
       />
 
       {/* drawer */}
-      <aside className="absolute left-0 top-0 h-full w-87.5 bg-white shadow-xl flex flex-col">
+      <aside className="absolute left-0 top-0 h-full w-87.5 bg-background text-foreground shadow-xl flex flex-col">
         {/* header */}
         <div className="flex items-center justify-end p-4">
-          <Settings size={18} />
+          <button
+            type="button"
+            aria-label="설정 열기"
+            onClick={() => setSettingsOpen(true)}
+            className="rounded-md p-2 hover:bg-muted"
+          >
+            <Settings size={18} />
+          </button>
         </div>
 
         {/* profile */}
-        <div className="px-4 pt-10 flex flex-col items-center gap-3">
+        <div className="px-4 pt-4 flex flex-col items-center gap-3">
           <Image
             src={session?.user?.image ?? "/logo.svg"}
             alt="profile"
@@ -51,7 +65,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
             className="rounded-full border"
           />
           <div className="flex flex-col items-center">
-            <p className="text-2xl font-semibold">
+            <p className="text-2xl font-semibold text-foreground">
               {session?.user?.name ?? "사용자"}
             </p>
             <p className="text-xs text-muted-foreground">
@@ -61,32 +75,32 @@ export default function MyPageDrawer({ open, onClose }: Props) {
         </div>
 
         {/* 글, 댓글, 친구 갯수 */}
-        <div className="flex justify-around mx-4 gap-2 items-center text-white">
+        <div className="flex justify-around mx-4 gap-2 items-center">
           <button
             type="button"
-            className="bg-chart-4 shadow-sm border rounded-lg w-full py-2 my-6"
+            className="bg-primary text-primary-foreground shadow-sm border border-border rounded-lg w-full py-2 my-6"
           >
-            <p className="font-light">글</p>
-            <p className="font-extrabold">3</p>
+            <p className="font-light text-white">글</p>
+            <p className="font-extrabold text-white">3</p>
           </button>
           <button
             type="button"
-            className="bg-chart-4 shadow-sm border rounded-lg w-full py-2 my-6"
+            className="bg-primary text-primary-foreground shadow-sm border border-border rounded-lg w-full py-2 my-6"
           >
-            <p className="font-light">댓글</p>
-            <p className="font-extrabold">3</p>
+            <p className="font-light text-white">댓글</p>
+            <p className="font-extrabold text-white">3</p>
           </button>
           <button
             type="button"
-            className="bg-chart-4 shadow-sm border rounded-lg w-full py-2 my-6"
+            className="bg-primary text-primary-foreground shadow-sm border border-border rounded-lg w-full py-2 my-6"
           >
-            <p className="font-light">친구</p>
-            <p className="font-extrabold">3</p>
+            <p className="font-light text-white">친구</p>
+            <p className="font-extrabold text-white">3</p>
           </button>
         </div>
 
         {/* notifications */}
-        <div className="flex-1 overflow-y-auto p-6 mx-4 border shadow-md rounded-3xl bg-gray-50">
+        <div className="flex-1 overflow-y-auto p-6 mx-4 border border-border shadow-md rounded-3xl bg-muted text-foreground">
           <h3 className="mb-5 text-xl font-semibold">알림</h3>
 
           <ul className="flex flex-col text-sm gap-2">
@@ -106,7 +120,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
         <p className="text-center text-xs font-light my-4 text-muted-foreground">
           Developed by{" "}
           <a
-            href="https://github.com/Green-JEON/hanaro"
+            href="https://github.com/Green-JEONG/hanaro"
             target="_blank"
             rel="noopener noreferrer"
             className="underline hover:text-foreground"
@@ -116,7 +130,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
         </p>
 
         {/* footer */}
-        <div className="flex border-t py-6 mx-6">
+        <div className="flex border-t border-border py-6 mx-6">
           <button
             type="button"
             className="w-full border-r text-sm text-red-400 hover:underline"
@@ -133,7 +147,6 @@ export default function MyPageDrawer({ open, onClose }: Props) {
                 return;
               }
 
-              // 탈퇴 성공 → 자동 로그아웃 → 홈 이동
               await signOut({ callbackUrl: "/" });
             }}
           >
@@ -149,6 +162,12 @@ export default function MyPageDrawer({ open, onClose }: Props) {
           </button>
         </div>
       </aside>
+
+      {/* settings modal */}
+      <AccountSettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+      />
     </div>
   );
 }

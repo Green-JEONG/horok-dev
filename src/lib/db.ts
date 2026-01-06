@@ -11,8 +11,8 @@ export type DbUser = {
   password: string | null;
   name: string | null;
   role: "USER" | "ADMIN";
-  provider: "credentials" | "github";
-  github_id: string | null;
+  provider: "credentials" | "github" | "google";
+  github_id: string | null; // OAuth 공용 ID로 사용
 };
 
 export async function findUserByEmail(email: string) {
@@ -51,17 +51,166 @@ export async function upsertOAuthUser(params: {
 }) {
   const { email, name = null, provider, providerId } = params;
 
+  const role = email === "th2gr22n@gmail.com" ? "ADMIN" : "USER";
+
   await pool.query(
     `
-    INSERT INTO users (email, name, role, provider, provider_id)
-    VALUES (?, ?, 'USER', ?, ?)
+    INSERT INTO users (email, name, role, provider, github_id)
+    VALUES (?, ?, ?, ?, ?)
     ON DUPLICATE KEY UPDATE
       name = COALESCE(VALUES(name), name),
       provider = VALUES(provider),
-      provider_id = VALUES(provider_id)
+      github_id = COALESCE(github_id, VALUES(github_id))
     `,
-    [email, name, provider, providerId],
+    [email, name, role, provider, providerId],
   );
 
   return findUserByEmail(email);
+}
+
+export type DbPost = {
+  id: number;
+  title: string;
+  content: string;
+  thumbnail: string | null;
+  created_at: Date;
+
+  author_name: string;
+  category_name: string;
+  likes_count: number;
+  comments_count: number;
+};
+
+export async function findRecentPosts(limit = 12) {
+  const [rows] = await pool.query(
+    `
+    SELECT
+      p.id,
+      p.title,
+      p.content,
+      p.thumbnail,
+      p.created_at,
+      u.name AS author_name,
+      c.name AS category_name,
+      0 AS likes_count,
+      0 AS comments_count
+    FROM posts p
+    JOIN users u ON u.id = p.user_id
+    JOIN categories c ON c.id = p.category_id
+    ORDER BY p.created_at DESC
+    LIMIT ?
+    `,
+    [limit],
+  );
+
+  return rows as DbPost[];
+}
+
+export async function findPostsPaged(limit: number, offset: number) {
+  const [rows] = await pool.query(
+    `
+    SELECT
+      p.id,
+      p.title,
+      p.content,
+      p.thumbnail,
+      p.created_at,
+      u.name AS author_name,
+      c.name AS category_name,
+      0 AS likes_count,
+      0 AS comments_count
+    FROM posts p
+    JOIN users u ON u.id = p.user_id
+    JOIN categories c ON c.id = p.category_id
+    ORDER BY p.created_at DESC
+    LIMIT ? OFFSET ?
+    `,
+    [limit, offset],
+  );
+
+  return rows as DbPost[];
+}
+
+export async function findPostById(id: number) {
+  const [rows] = await pool.query(
+    `
+    SELECT
+      p.id,
+      p.title,
+      p.content,
+      p.thumbnail,
+      p.created_at,
+      u.name AS author_name,
+      c.name AS category_name
+    FROM posts p
+    JOIN users u ON u.id = p.user_id
+    JOIN categories c ON c.id = p.category_id
+    WHERE p.id = ?
+    LIMIT 1
+    `,
+    [id],
+  );
+
+  return (rows as DbPost[])[0] ?? null;
+}
+
+export async function findPostsByKeywordPaged(
+  keyword: string,
+  limit: number,
+  offset: number,
+) {
+  const [rows] = await pool.query(
+    `
+    SELECT
+      p.id,
+      p.title,
+      p.content,
+      p.created_at,
+      u.name AS author_name,
+      c.name AS category_name,
+      0 AS likes_count,
+      0 AS comments_count
+    FROM posts p
+    JOIN users u ON u.id = p.user_id
+    JOIN categories c ON c.id = p.category_id
+    WHERE
+      p.title LIKE ? OR
+      p.content LIKE ?
+    ORDER BY p.created_at DESC
+    LIMIT ? OFFSET ?
+    `,
+    [`%${keyword}%`, `%${keyword}%`, limit, offset],
+  );
+
+  return rows as DbPost[];
+}
+
+export type DbContribution = {
+  date: string; // YYYY-MM-DD
+  count: number;
+};
+
+export async function findUserContributions(userId: string) {
+  const [rows] = await pool.query(
+    `
+    SELECT
+      DATE(activity_date) AS date,
+      COUNT(*) AS count
+    FROM (
+      SELECT created_at AS activity_date
+      FROM posts
+      WHERE user_id = ?
+
+      UNION ALL
+
+      SELECT updated_at AS activity_date
+      FROM posts
+      WHERE user_id = ?
+    ) t
+    GROUP BY DATE(activity_date)
+    `,
+    [userId, userId],
+  );
+
+  return rows as DbContribution[];
 }

@@ -21,7 +21,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  // ⭐ 여기 추가
   const userId = Number(session.user.id);
   if (Number.isNaN(userId)) {
     console.error("Invalid session user id:", session.user);
@@ -39,7 +38,7 @@ export async function POST(req: Request) {
   }
 
   const post = await createPost({
-    userId, // ⭐ Number(session.user.id) ❌ → userId ⭕
+    userId,
     categoryId,
     title,
     content,

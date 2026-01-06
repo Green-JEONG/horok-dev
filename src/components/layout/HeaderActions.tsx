@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -16,7 +15,7 @@ export default function HeaderActions() {
   console.log("STATUS:", status);
 
   const isLoggedIn = status === "authenticated";
-  const isAdmin = session?.user?.role === "ADMIN";
+  // const isAdmin = session?.user?.role === "ADMIN";
 
   if (!isLoggedIn) {
     return (
@@ -32,11 +31,11 @@ export default function HeaderActions() {
 
   return (
     <div className="flex items-center gap-2">
-      {isAdmin && (
+      {/* {isAdmin && (
         <Button variant="outline" size="sm" asChild>
           <Link href="/admin">관리자</Link>
         </Button>
-      )}
+      )} */}
 
       <Button
         variant="ghost"

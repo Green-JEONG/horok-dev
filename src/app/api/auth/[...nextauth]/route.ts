@@ -75,19 +75,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (!dbUser) return false;
 
-        // ⭐️ 핵심
-        user.id = String(dbUser.id);
+        user.dbUserId = String(dbUser.id);
         user.role = dbUser.role;
       }
 
       return true;
     },
 
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
+      // 최초 로그인
       if (user) {
-        token.sub = user.id; // ⭐️ 표준
-        token.role = user.role;
+        if (typeof user.dbUserId === "string") {
+          token.userId = user.dbUserId;
+        }
+        if (user.role === "USER" || user.role === "ADMIN") {
+          token.role = user.role;
+        }
+        if (typeof user.name === "string") {
+          token.name = user.name;
+        }
       }
+
+      // useSession().update() 호출 시
+      if (trigger === "update" && session?.name) {
+        token.name = session.name;
+      }
+
       return token;
     },
 

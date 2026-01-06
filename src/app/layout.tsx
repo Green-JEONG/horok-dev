@@ -12,22 +12,33 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko">
-      <body className="flex min-h-screen flex-col">
+      <body className="flex h-screen flex-col overflow-hidden">
         <AuthSessionProvider>
           <Header />
 
           <BannerBar />
-
           {/* Main */}
-          <main className="mx-auto flex w-full max-w-6xl flex-1">
+          <main
+            className="
+    mx-auto
+    flex
+    w-full
+    max-w-6xl
+    flex-1
+    overflow-hidden
+  "
+          >
             {/* Left Sidebar */}
             <aside
               className="
-              hidden
-              w-1/4
-              md:block
-              py-6
-            "
+    hidden
+    w-1/4
+    md:block
+    py-6
+    h-full
+    sticky
+    top-0
+  "
             >
               {/* 세로 구분선 */}
               <div className="flex h-full px-6 flex-col border-r py-6">
@@ -46,11 +57,15 @@ export default function RootLayout({
             {/* Main Content */}
             <section
               className="
-              w-full
-              px-4 py-6
-              md:w-2/3
-              md:px-6
-            "
+    w-full
+    md:w-2/3
+    px-4
+    md:px-6
+    py-6
+    h-[calc(100vh-104px)]
+    overflow-y-auto
+    scrollbar-hide
+  "
             >
               {children}
             </section>

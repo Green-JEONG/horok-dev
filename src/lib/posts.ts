@@ -28,8 +28,7 @@ export async function createPost(params: {
   const { userId, categoryId, title, content } = params;
 
   const [result] = await pool.query<mysql.ResultSetHeader>(
-    `INSERT INTO posts (user_id, category_id, title, content)
-     VALUES (?, ?, ?, ?)`,
+    `INSERT INTO posts (user_id, category_id, title, content) VALUES (?, ?, ?, ?)`,
     [userId, categoryId, title, content],
   );
 
