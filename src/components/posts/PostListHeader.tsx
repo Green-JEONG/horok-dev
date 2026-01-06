@@ -1,0 +1,59 @@
+"use client";
+
+import { useState } from "react";
+import { ChevronDown } from "lucide-react";
+
+type SortType = "latest" | "views" | "likes" | "comments";
+
+const SORT_LABEL: Record<SortType, string> = {
+  latest: "최신순",
+  views: "조회순",
+  likes: "좋아요순",
+  comments: "댓글순",
+};
+
+export default function PostListHeader() {
+  const [sort, setSort] = useState<SortType>("latest");
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="flex items-center justify-between border-b pb-3">
+      {/* 왼쪽: 카테고리 위치 */}
+      <h2 className="text-sm font-semibold text-foreground">전체</h2>
+
+      {/* 오른쪽: 정렬 드롭다운 */}
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className="flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm hover:bg-muted transition-colors"
+        >
+          {SORT_LABEL[sort]}
+          <ChevronDown className="h-4 w-4" />
+        </button>
+
+        {open && (
+          <ul
+            className="absolute right-0 mt-2 w-20.5
+              rounded-md border bg-background shadow-md text-sm"
+          >
+            {(Object.keys(SORT_LABEL) as SortType[]).map((key) => (
+              <li key={key}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSort(key);
+                    setOpen(false);
+                  }}
+                  className="w-full px-3 py-2 text-left hover:bg-muted"
+                >
+                  {SORT_LABEL[key]}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}

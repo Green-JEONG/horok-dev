@@ -1,7 +1,11 @@
-export default function Home() {
+import PostList from "@/components/posts/PostList";
+import PostListHeader from "@/components/posts/PostListHeader";
+
+export default async function Page() {
   return (
-    <main className="flex min-h-screen items-center justify-center">
-      <h1 className="text-3xl font-bold text-blue-600">Hanaro Tech Blog 🚀</h1>
-    </main>
+    <div className="space-y-6">
+      <PostListHeader />
+      <PostList />
+    </div>
   );
 }
