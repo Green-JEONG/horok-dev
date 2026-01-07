@@ -22,7 +22,13 @@ export default function PopularPosts() {
   return (
     <section className="space-y-3">
       <div className="flex items-center gap-2">
-        <Image src="/fire.svg" alt="thumb" width={18} height={18} />
+        <Image
+          src="/fire.svg"
+          alt="thumb"
+          width={18}
+          height={18}
+          style={{ width: "auto", height: "auto" }}
+        />
         <h3 className="text-sm font-semibold">인기</h3>
       </div>
       <ul className="space-y-2 text-sm">

@@ -175,7 +175,13 @@ export default function LoginModal({ open, onClose }: Props) {
 
           {/* 로고 */}
           <div className="my-6 flex flex-col items-center">
-            <Image src="/logo.svg" alt="Horok Tech" width={60} height={60} />
+            <Image
+              src="/logo.svg"
+              alt="Horok Tech"
+              width={60}
+              height={60}
+              style={{ width: "auto", height: "auto" }}
+            />
             <h2 className="text-lg font-bold mt-2">
               {step === "login" ? "Horok Tech" : "회원가입"}
             </h2>

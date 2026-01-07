@@ -40,10 +40,10 @@ export default function HeaderActions() {
       <Button
         variant="ghost"
         size="icon"
+        className="shrink-0"
         onClick={() => setOpen(true)}
-        aria-label="마이페이지 열기"
       >
-        <Image src="/alarm.svg" alt="alram" width={20} height={20} />
+        <Image src="/alarm.svg" alt="alarm" width={20} height={20} />
       </Button>
 
       <MyPageDrawer open={open} onClose={() => setOpen(false)} />

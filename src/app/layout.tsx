@@ -1,8 +1,8 @@
-import "@/app/globals.css";
 import BannerBar from "@/components/layout/BannerBar";
 import Header from "@/components/layout/Header";
 import PopularPosts from "@/components/sidebar/PopularPosts";
 import RecommendedKeywords from "@/components/sidebar/RecommendedKeywords";
+import "@/app/globals.css";
 import AuthSessionProvider from "@/components/providers/SessionProvider";
 
 export default function RootLayout({

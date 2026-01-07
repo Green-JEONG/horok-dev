@@ -1,11 +1,11 @@
-import { getStopWords } from "./stopwords";
+import { getStopWords } from "@/lib/stopwords";
 
-export async function buildSearchQuery(raw: string): Promise<string[]> {
+export async function normalizeQuery(raw: string): Promise<string> {
   const stopWords = await getStopWords();
 
   return raw
+    .toLowerCase()
     .split(/\s+/)
-    .map((word) => word.trim())
-    .filter((word) => word.length >= 2)
-    .filter((word) => !stopWords.has(word));
+    .filter((word) => word.length > 1 && !stopWords.has(word))
+    .join(" ");
 }

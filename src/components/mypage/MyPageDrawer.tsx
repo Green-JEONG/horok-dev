@@ -63,6 +63,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
             width={100}
             height={100}
             className="rounded-full border"
+            style={{ width: "auto", height: "auto" }}
           />
           <div className="flex flex-col items-center">
             <p className="text-2xl font-semibold text-foreground">

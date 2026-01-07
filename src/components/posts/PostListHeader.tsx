@@ -21,20 +21,27 @@ export default function PostListHeader() {
   const searchParams = useSearchParams();
 
   const keyword = searchParams.get("keyword");
-  const isPostDetail = pathname.startsWith("/posts");
+
+  const isFeedPage = pathname === "/feed" || pathname.startsWith("/feed/");
+  const isLikesPage = pathname === "/likes" || pathname.startsWith("/likes/");
+
+  const title = keyword
+    ? `#${keyword}`
+    : isLikesPage
+      ? "좋아요"
+      : isFeedPage
+        ? "피드"
+        : "전체";
 
   return (
     <div className="flex items-center justify-between pb-3">
-      {/* 왼쪽 타이틀 */}
-      <h2 className="text-sm font-semibold text-foreground">
-        {keyword ? `#${keyword}` : isPostDetail ? "피드" : "전체"}
-      </h2>
+      <h2 className="text-sm font-semibold text-foreground">{title}</h2>
 
-      {/* 정렬 */}
+      {/* 정렬 버튼 */}
       <div className="relative">
         <button
           type="button"
-          onClick={() => setOpen(!open)}
+          onClick={() => setOpen((v) => !v)}
           className="flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm hover:bg-muted transition-colors"
         >
           {SORT_LABEL[sort]}
@@ -42,7 +49,7 @@ export default function PostListHeader() {
         </button>
 
         {open && (
-          <ul className="absolute right-0 mt-2 w-20.5 rounded-md border bg-background shadow-md text-sm">
+          <ul className="absolute right-0 mt-2 w-24 rounded-md border bg-background shadow-md text-sm">
             {(Object.keys(SORT_LABEL) as SortType[]).map((key) => (
               <li key={key}>
                 <button
@@ -50,6 +57,7 @@ export default function PostListHeader() {
                   onClick={() => {
                     setSort(key);
                     setOpen(false);
+                    // 👉 나중에 router.push로 sort 쿼리 연결
                   }}
                   className="w-full px-3 py-2 text-left hover:bg-muted"
                 >

@@ -1,4 +1,3 @@
-// components/layout/HeaderSearch.tsx
 "use client";
 
 import { Search } from "lucide-react";
@@ -16,13 +15,13 @@ export default function HeaderSearch() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="relative">
+    <form onSubmit={onSubmit} className="relative w-full">
       <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="검색"
-        className="h-8 w-100 rounded-4xl border bg-background pl-8 pr-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+        className="h-8 w-full rounded-full border bg-background pl-8 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
       />
     </form>
   );

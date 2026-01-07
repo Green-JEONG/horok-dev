@@ -1,25 +1,44 @@
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { getPostById, updatePost, deletePost } from "@/lib/posts";
 
-export async function GET(_: Request, { params }: { params: { id: string } }) {
-  const post = await getPostById(Number(params.id));
+export async function GET(
+  _req: NextRequest,
+  context: { params: Promise<{ id: string }> },
+) {
+  const { id } = await context.params;
+  const postId = Number(id);
+
+  if (Number.isNaN(postId)) {
+    return NextResponse.json({ message: "Invalid post id" }, { status: 400 });
+  }
+
+  const post = await getPostById(postId);
   if (!post) {
     return NextResponse.json({ message: "Not found" }, { status: 404 });
   }
+
   return NextResponse.json(post);
 }
 
 export async function PUT(
-  req: Request,
-  { params }: { params: { id: string } },
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await context.params;
+  const postId = Number(id);
+
+  if (Number.isNaN(postId)) {
+    return NextResponse.json({ message: "Invalid post id" }, { status: 400 });
+  }
+
   const session = await auth();
   if (!session) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const post = await getPostById(Number(params.id));
+  const post = await getPostById(postId);
   if (!post) {
     return NextResponse.json({ message: "Not found" }, { status: 404 });
   }
@@ -31,11 +50,10 @@ export async function PUT(
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
-  const body = await req.json();
-  const { title, content } = body;
+  const { title, content } = await req.json();
 
   const updated = await updatePost({
-    postId: post.id,
+    postId,
     title,
     content,
   });
@@ -44,15 +62,22 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _: Request,
-  { params }: { params: { id: string } },
+  _req: NextRequest,
+  context: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await context.params;
+  const postId = Number(id);
+
+  if (Number.isNaN(postId)) {
+    return NextResponse.json({ message: "Invalid post id" }, { status: 400 });
+  }
+
   const session = await auth();
   if (!session) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const post = await getPostById(Number(params.id));
+  const post = await getPostById(postId);
   if (!post) {
     return NextResponse.json({ message: "Not found" }, { status: 404 });
   }
@@ -64,6 +89,7 @@ export async function DELETE(
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
-  await deletePost(post.id);
+  await deletePost(postId);
+
   return NextResponse.json({ ok: true });
 }

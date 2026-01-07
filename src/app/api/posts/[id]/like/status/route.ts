@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { hasLiked, getLikeCount } from "@/lib/likes";
 
-export async function GET(_: Request, { params }: { params: { id: string } }) {
-  const { id } = await params;
+export async function GET(
+  _req: NextRequest,
+  context: { params: Promise<{ id: string }> },
+) {
+  const { id } = await context.params;
+
   const postId = Number(id);
   if (Number.isNaN(postId)) {
     return NextResponse.json({ message: "Invalid post id" }, { status: 400 });

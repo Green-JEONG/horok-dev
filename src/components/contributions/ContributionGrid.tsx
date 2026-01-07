@@ -46,9 +46,28 @@ export default function ContributionGrid() {
     return result;
   }, []);
 
+  useEffect(() => {
+    fetch("/api/users/contributions")
+      .then(async (res) => {
+        if (!res.ok) {
+          console.error("API failed:", res.status);
+          return [];
+        }
+        return res.json();
+      })
+      .then((d) => {
+        console.log("CONTRIBUTIONS:", d);
+        setData(Array.isArray(d) ? d : []);
+      })
+      .catch((err) => {
+        console.error("fetch error:", err);
+        setData([]);
+      });
+  }, []);
+
   return (
     <div className="rounded-xl border bg-background p-3">
-      <p className="mb-2 text-sm font-semibold"></p>
+      <p className="text-sm font-semibold"></p>
 
       <div
         className="grid gap-1"

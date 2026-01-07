@@ -1,9 +1,13 @@
+import type { RowDataPacket } from "mysql2/promise";
 import mysql from "mysql2/promise";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) throw new Error("Missing DATABASE_URL");
 
-export const pool = mysql.createPool(DATABASE_URL);
+export const pool = mysql.createPool({
+  uri: DATABASE_URL,
+  connectionLimit: 10,
+});
 
 export type DbUser = {
   id: string;
@@ -72,42 +76,18 @@ export type DbPost = {
   id: number;
   title: string;
   content: string;
-  thumbnail: string | null;
   created_at: Date;
-
   author_name: string;
   category_name: string;
   likes_count: number;
   comments_count: number;
 };
 
-export async function findRecentPosts(limit = 12) {
-  const [rows] = await pool.query(
-    `
-    SELECT
-      p.id,
-      p.title,
-      p.content,
-      p.thumbnail,
-      p.created_at,
-      u.name AS author_name,
-      c.name AS category_name,
-      0 AS likes_count,
-      0 AS comments_count
-    FROM posts p
-    JOIN users u ON u.id = p.user_id
-    JOIN categories c ON c.id = p.category_id
-    ORDER BY p.created_at DESC
-    LIMIT ?
-    `,
-    [limit],
-  );
-
-  return rows as DbPost[];
-}
-
-export async function findPostsPaged(limit: number, offset: number) {
-  const [rows] = await pool.query(
+export async function findPostsPaged(
+  limit: number,
+  offset: number,
+): Promise<DbPost[]> {
+  const [rows] = await pool.query<RowDataPacket[]>(
     `
     SELECT
       p.id,
@@ -165,6 +145,7 @@ export async function findPostsByKeywordPaged(
       p.id,
       p.title,
       p.content,
+      p.thumbnail,
       p.created_at,
       u.name AS author_name,
       c.name AS category_name,
@@ -190,27 +171,49 @@ export type DbContribution = {
   count: number;
 };
 
-export async function findUserContributions(userId: string) {
+export async function findUserContributions(userId: number) {
   const [rows] = await pool.query(
     `
     SELECT
-      DATE(activity_date) AS date,
+      DATE_FORMAT(created_at, '%Y-%m-%d') AS date,
       COUNT(*) AS count
-    FROM (
-      SELECT created_at AS activity_date
-      FROM posts
-      WHERE user_id = ?
-
-      UNION ALL
-
-      SELECT updated_at AS activity_date
-      FROM posts
-      WHERE user_id = ?
-    ) t
-    GROUP BY DATE(activity_date)
+    FROM posts
+    WHERE user_id = ?
+    GROUP BY DATE(created_at)
+    ORDER BY date
     `,
-    [userId, userId],
+    [userId],
   );
 
-  return rows as DbContribution[];
+  return rows as { date: string; count: number }[];
+}
+
+export async function searchPosts(
+  keyword: string,
+  limit: number,
+  offset: number,
+) {
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `
+    SELECT
+      p.id,
+      p.title,
+      p.content,
+      p.thumbnail,
+      p.created_at,
+      u.name AS author_name,
+      c.name AS category_name,
+      0 AS likes_count,
+      0 AS comments_count
+    FROM posts p
+    JOIN users u ON u.id = p.user_id
+    JOIN categories c ON c.id = p.category_id
+    WHERE MATCH(p.title, p.content) AGAINST (? IN BOOLEAN MODE)
+    ORDER BY p.created_at DESC
+    LIMIT ? OFFSET ?
+    `,
+    [`${keyword}*`, limit, offset],
+  );
+
+  return rows;
 }

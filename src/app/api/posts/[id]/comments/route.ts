@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import {
   getCommentById,
@@ -6,16 +7,21 @@ import {
   softDeleteComment,
 } from "@/lib/comments";
 
+/**
+ * 댓글 수정 (작성자만 가능)
+ */
 export async function PUT(
-  req: Request,
-  { params }: { params: { id: string } },
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await auth();
   if (!session) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const commentId = Number(params.id);
+  const { id } = await params;
+  const commentId = Number(id);
+
   if (Number.isNaN(commentId)) {
     return NextResponse.json(
       { message: "Invalid comment id" },
@@ -35,10 +41,9 @@ export async function PUT(
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
-  const body = await req.json();
-  const { content } = body;
+  const { content } = await req.json();
 
-  if (!content) {
+  if (!content || typeof content !== "string") {
     return NextResponse.json({ message: "Content required" }, { status: 400 });
   }
 
@@ -50,16 +55,23 @@ export async function PUT(
   return NextResponse.json(updated);
 }
 
+/**
+ * 댓글 삭제
+ * - 작성자: 삭제 가능
+ * - 관리자: 타인 댓글 삭제 가능 (soft delete)
+ */
 export async function DELETE(
-  _: Request,
-  { params }: { params: { id: string } },
+  _: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await auth();
   if (!session) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const commentId = Number(params.id);
+  const { id } = await params;
+  const commentId = Number(id);
+
   if (Number.isNaN(commentId)) {
     return NextResponse.json(
       { message: "Invalid comment id" },

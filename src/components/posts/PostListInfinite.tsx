@@ -64,7 +64,6 @@ export default function PostListInfinite({
             id={post.id}
             title={post.title}
             description={post.content}
-            thumbnail={post.thumbnail}
             category={post.category_name}
             author={post.author_name}
             likes={post.likes_count}

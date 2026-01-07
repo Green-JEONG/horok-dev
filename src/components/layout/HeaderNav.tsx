@@ -1,4 +1,3 @@
-// HeaderNav.tsx
 "use client";
 
 import Link from "next/link";
@@ -13,18 +12,17 @@ const navItems = [
     match: (p: string) => p === "/feed" || p.startsWith("/feed/"),
   },
   {
-    href: "/favorites",
+    href: "/likes",
     label: "좋아요",
-    match: (p: string) => p.startsWith("/favorites"),
+    match: (p: string) => p.startsWith("/likes"),
   },
 ];
 
 export default function HeaderNav() {
   const pathname = usePathname();
-  const isFeed = pathname === "/" || pathname.startsWith("/posts");
 
   return (
-    <nav className="flex items-center gap-24 text-sm font-medium">
+    <nav className="flex items-center gap-3 text-sm font-medium">
       {navItems.map((item) => {
         const isActive = item.match(pathname);
 

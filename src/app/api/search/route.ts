@@ -1,54 +1,39 @@
 import { NextResponse } from "next/server";
-import type mysql from "mysql2/promise";
 import { pool } from "@/lib/db";
-import { buildSearchQuery } from "@/lib/search";
+import { normalizeQuery } from "@/lib/search";
 
-export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const q = url.searchParams.get("q");
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const raw = searchParams.get("q") ?? "";
 
-  if (!q || q.trim().length < 2) {
-    return NextResponse.json(
-      { message: "Search query too short" },
-      { status: 400 },
-    );
-  }
+  const q = await normalizeQuery(raw);
+  if (!q) return NextResponse.json([]);
 
-  const keywords = await buildSearchQuery(q);
+  const page = Number(searchParams.get("page") ?? 1);
+  const limit = 12;
+  const offset = (page - 1) * limit;
 
-  if (keywords.length === 0) {
-    return NextResponse.json({
-      posts: [],
-      message: "No valid keywords after stopword filtering",
-    });
-  }
-
-  // BOOLEAN MODE용 쿼리 생성
-  const booleanQuery = keywords.map((word) => `+${word}`).join(" ");
-
-  const [rows] = await pool.query<mysql.RowDataPacket[]>(
+  const [rows] = await pool.query(
     `
     SELECT
       p.id,
       p.title,
+      p.content,
       p.created_at,
-      u.email AS author,
-      COUNT(pl.user_id) AS likeCount
+      u.name AS author_name,
+      c.name AS category_name,
+      0 AS likes_count,
+      0 AS comments_count
     FROM posts p
-    JOIN users u ON p.user_id = u.id
-    LEFT JOIN post_likes pl ON p.id = pl.post_id
+    JOIN users u ON u.id = p.user_id
+    JOIN categories c ON c.id = p.category_id
     WHERE MATCH(p.title, p.content)
       AGAINST (? IN BOOLEAN MODE)
-    GROUP BY p.id
     ORDER BY p.created_at DESC
+    LIMIT ? OFFSET ?
     `,
-    [booleanQuery],
+    [`${q}*`, limit, offset],
   );
 
-  return NextResponse.json({
-    query: q,
-    keywords,
-    count: rows.length,
-    posts: rows,
-  });
+  return NextResponse.json(rows);
 }
