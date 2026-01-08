@@ -72,7 +72,7 @@ export async function PUT(
 /**
  * 댓글 삭제
  * - 작성자: 삭제 가능
- * - 관리자: 타인 댓글 삭제 가능 (soft delete)
+ * - 관리자: 타인 댓글 삭제 가능
  */
 export async function DELETE(
   _req: NextRequest,

@@ -53,7 +53,6 @@ function clampText(s: string, n: number) {
 }
 
 export default async function AdminPage() {
-  // ✅ 관리자만 접근
   const session = await auth();
   const role = session?.user?.role;
 
@@ -224,7 +223,6 @@ export default async function AdminPage() {
     const postId = Number(formData.get("postId") ?? 0);
     if (Number.isNaN(postId) || postId <= 0) return;
 
-    // ✅ 프로젝트가 soft delete 쓰고 있어서 soft delete로 처리
     await pool.query<ResultSetHeader>(
       `
       UPDATE posts
@@ -243,7 +241,6 @@ export default async function AdminPage() {
     const commentId = Number(formData.get("commentId") ?? 0);
     if (Number.isNaN(commentId) || commentId <= 0) return;
 
-    // ✅ comments도 soft delete 컬럼 존재
     await pool.query<ResultSetHeader>(
       `
       UPDATE comments
@@ -440,7 +437,7 @@ export default async function AdminPage() {
                     type="submit"
                     className="rounded-md border px-3 py-2 text-sm text-red-500 hover:bg-red-500/10"
                   >
-                    삭제(soft delete)
+                    삭제
                   </button>
                 </form>
               </div>
