@@ -1,36 +1,29 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## 1번째 작업
+### 기술 블로그 만들기
 
-## Getting Started
+![Mar-10-2026 22-51-58](https://github.com/user-attachments/assets/8f302e44-9123-452c-8d03-2d1dec0ad9bd)
 
-First, run the development server:
+1) 로그인
+- 아이디 및 비밀번호
+- 깃허브 간편계정
+- 구글 간편계정
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+2) 탭
+- 홈
+- 피드
+- 좋아요
+- 인기글
+- 카테고리
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+3) 기능
+- 검색 (키워드 기반)
+- 라이트/다크 모드
+- 마이페이지 구경 (작성한 댓글, 글, 친구)
+- 회원탈퇴
+- 로그아웃
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+![Mar-10-2026 22-59-18](https://github.com/user-attachments/assets/b29f710d-e8b8-4667-a775-9fde63ce77a2)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+4) 관리자/사용자 계정 구분
+- admin
+- user
