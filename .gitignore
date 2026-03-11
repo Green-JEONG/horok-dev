@@ -45,3 +45,6 @@ storybook-static
 
 # DB backups
 docker/*.sql
+
+docker-compose.yml
+.env

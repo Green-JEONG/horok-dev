@@ -5,6 +5,7 @@ const mockPosts = Array.from({ length: 8 }).map((_, i) => ({
   id: i + 1,
   title: `초기 게시글 ${i + 1}`,
   content: "무한 스크롤 테스트용 게시글입니다.",
+  thumbnail: null,
   category_name: "React",
   author_name: "홍초",
   likes_count: Math.floor(Math.random() * 10),

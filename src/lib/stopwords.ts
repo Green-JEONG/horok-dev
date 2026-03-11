@@ -1,9 +1,8 @@
-import type mysql from "mysql2/promise";
-import { pool } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 
 let cachedStopWords: Set<string> | null = null;
 let cachedAt = 0;
-const TTL = 1000 * 60 * 10; // 10분
+const TTL = 1000 * 60 * 10;
 
 export async function getStopWords(): Promise<Set<string>> {
   const now = Date.now();
@@ -12,11 +11,11 @@ export async function getStopWords(): Promise<Set<string>> {
     return cachedStopWords;
   }
 
-  const [rows] = await pool.query<mysql.RowDataPacket[]>(
-    `SELECT word FROM stop_words`,
-  );
+  const rows = await prisma.stopWord.findMany({
+    select: { word: true },
+  });
 
-  cachedStopWords = new Set(rows.map((row) => String(row.word).toLowerCase()));
+  cachedStopWords = new Set(rows.map((row) => row.word.toLowerCase()));
   cachedAt = now;
 
   return cachedStopWords;

@@ -1,21 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { auth } from "@/app/api/auth/[...nextauth]/route";
+import { getDbUserIdFromSession } from "@/lib/auth-db";
 import { getPostById, updatePost, deletePost } from "@/lib/posts";
-import { pool } from "@/lib/db";
-import type { RowDataPacket } from "mysql2/promise";
-
-async function getDbUserId() {
-  const session = await auth();
-  if (!session?.user?.email) return null;
-
-  const [rows] = await pool.query<RowDataPacket[]>(
-    `SELECT id FROM users WHERE email = ? LIMIT 1`,
-    [session.user.email],
-  );
-
-  return rows.length > 0 ? (rows[0].id as number) : null;
-}
 
 export async function GET(
   _req: NextRequest,
@@ -47,7 +33,7 @@ export async function PUT(
     return NextResponse.json({ message: "Invalid post id" }, { status: 400 });
   }
 
-  const dbUserId = await getDbUserId();
+  const dbUserId = await getDbUserIdFromSession();
   if (!dbUserId) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
@@ -85,7 +71,7 @@ export async function DELETE(
     return NextResponse.json({ message: "Invalid post id" }, { status: 400 });
   }
 
-  const dbUserId = await getDbUserId();
+  const dbUserId = await getDbUserIdFromSession();
   if (!dbUserId) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }

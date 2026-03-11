@@ -1,8 +1,7 @@
 import bcrypt from "bcryptjs";
-import type { RowDataPacket } from "mysql2";
 import { NextResponse } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
-import { pool } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 
 export async function PATCH(req: Request) {
   try {
@@ -29,19 +28,14 @@ export async function PATCH(req: Request) {
       );
     }
 
-    // 현재 유저 조회
-    type UserRow = RowDataPacket & {
-      id: string;
-      password: string | null;
-      provider: "credentials" | "github" | "google";
-    };
-
-    const [rows] = await pool.query<UserRow[]>(
-      "SELECT id, password, provider FROM users WHERE id = ? LIMIT 1",
-      [session.user.id],
-    );
-
-    const user = rows[0];
+    const user = await prisma.user.findUnique({
+      where: { id: BigInt(session.user.id) },
+      select: {
+        id: true,
+        password: true,
+        provider: true,
+      },
+    });
 
     if (!user) {
       return NextResponse.json(
@@ -87,21 +81,20 @@ export async function PATCH(req: Request) {
 
     // 업데이트
     if (passwordToSave && name) {
-      await pool.query("UPDATE users SET name = ?, password = ? WHERE id = ?", [
-        name,
-        passwordToSave,
-        session.user.id,
-      ]);
+      await prisma.user.update({
+        where: { id: BigInt(session.user.id) },
+        data: { name, password: passwordToSave },
+      });
     } else if (passwordToSave) {
-      await pool.query("UPDATE users SET password = ? WHERE id = ?", [
-        passwordToSave,
-        session.user.id,
-      ]);
+      await prisma.user.update({
+        where: { id: BigInt(session.user.id) },
+        data: { password: passwordToSave },
+      });
     } else {
-      await pool.query("UPDATE users SET name = ? WHERE id = ?", [
-        name,
-        session.user.id,
-      ]);
+      await prisma.user.update({
+        where: { id: BigInt(session.user.id) },
+        data: { name },
+      });
     }
 
     return NextResponse.json({ ok: true });

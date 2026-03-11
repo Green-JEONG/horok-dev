@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
-import { pool } from "@/lib/db";
-import type { RowDataPacket } from "mysql2/promise";
+import { getUserIdByEmail } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   const session = await auth();
@@ -9,32 +9,29 @@ export async function GET() {
     return NextResponse.json([]);
   }
 
-  // email → userId
-  const [users] = await pool.query<RowDataPacket[]>(
-    `SELECT id FROM users WHERE email = ? LIMIT 1`,
-    [session.user.email],
-  );
-
-  if (users.length === 0) {
+  const userId = await getUserIdByEmail(session.user.email);
+  if (!userId) {
     return NextResponse.json([]);
   }
 
-  const userId = users[0].id;
+  const rows = await prisma.comment.findMany({
+    where: {
+      userId: BigInt(userId),
+      isDeleted: false,
+    },
+    orderBy: { createdAt: "desc" },
+    include: {
+      post: {
+        select: { title: true },
+      },
+    },
+  });
 
-  const [rows] = await pool.query<RowDataPacket[]>(
-    `
-    SELECT
-      c.id,
-      c.content,
-      p.title AS post_title
-    FROM comments c
-    JOIN posts p ON p.id = c.post_id
-    WHERE c.user_id = ?
-      AND c.is_deleted = 0
-    ORDER BY c.created_at DESC
-    `,
-    [userId],
+  return NextResponse.json(
+    rows.map((comment) => ({
+      id: Number(comment.id),
+      content: comment.content,
+      post_title: comment.post.title,
+    })),
   );
-
-  return NextResponse.json(rows);
 }

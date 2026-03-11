@@ -1,36 +1,35 @@
 import Link from "next/link";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
-import { pool } from "@/lib/db";
-import type { RowDataPacket } from "mysql2/promise";
+import { getUserIdByEmail } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 import LikeButton from "./LikeButton";
 
 type Props = { postId: number };
 
 export default async function PostFooter({ postId }: Props) {
-  // 1) 좋아요 수
-  const [[likeRow]] = await pool.query<RowDataPacket[]>(
-    `SELECT COUNT(*) AS count FROM post_likes WHERE post_id = ?`,
-    [postId],
-  );
-  const likeCount = Number(likeRow?.count ?? 0);
+  const [likeCount, session] = await Promise.all([
+    prisma.postLike.count({
+      where: { postId: BigInt(postId) },
+    }),
+    auth(),
+  ]);
 
-  // 2) 로그인 유저면, 내가 좋아요 눌렀는지
-  const session = await auth();
   let liked = false;
 
   if (session?.user?.email) {
-    const [urows] = await pool.query<RowDataPacket[]>(
-      `SELECT id FROM users WHERE email = ? LIMIT 1`,
-      [session.user.email],
-    );
+    const userId = await getUserIdByEmail(session.user.email);
 
-    if (urows.length > 0) {
-      const userId = urows[0].id as number;
-      const [lrows] = await pool.query<RowDataPacket[]>(
-        `SELECT 1 FROM post_likes WHERE post_id = ? AND user_id = ? LIMIT 1`,
-        [postId, userId],
-      );
-      liked = lrows.length > 0;
+    if (userId) {
+      const like = await prisma.postLike.findUnique({
+        where: {
+          postId_userId: {
+            postId: BigInt(postId),
+            userId: BigInt(userId),
+          },
+        },
+        select: { postId: true },
+      });
+      liked = Boolean(like);
     }
   }
 
