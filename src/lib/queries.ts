@@ -1,5 +1,4 @@
-import type { RowDataPacket } from "mysql2/promise";
-import { pool } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 
 export type DbPost = {
   id: number;
@@ -13,64 +12,82 @@ export type DbPost = {
   comments_count: number;
 };
 
+function mapPost(post: {
+  id: bigint;
+  title: string;
+  content: string;
+  thumbnail: string | null;
+  createdAt: Date;
+  user: { name: string | null };
+  category: { name: string };
+  _count: { likes: number; comments: number };
+}) {
+  return {
+    id: Number(post.id),
+    title: post.title,
+    content: post.content,
+    thumbnail: post.thumbnail,
+    created_at: post.createdAt,
+    author_name: post.user.name ?? "Unknown",
+    category_name: post.category.name,
+    likes_count: post._count.likes,
+    comments_count: post._count.comments,
+  };
+}
+
 export async function searchPosts(
   keyword: string,
   limit: number,
   offset: number,
 ): Promise<DbPost[]> {
-  const [rows] = await pool.query<RowDataPacket[]>(
-    `
-    SELECT
-      p.id,
-      p.title,
-      p.content,
-      p.created_at,
-      u.name AS author_name,
-      c.name AS category_name,
-      0 AS likes_count,
-      0 AS comments_count
-    FROM posts p
-    JOIN users u ON u.id = p.user_id
-    JOIN categories c ON c.id = p.category_id
-    WHERE
-      MATCH(p.title, p.content)
-      AGAINST (? IN BOOLEAN MODE)
-    ORDER BY p.created_at DESC
-    LIMIT ? OFFSET ?
-    `,
-    [`${keyword}*`, limit, offset],
-  );
+  const posts = await prisma.post.findMany({
+    where: {
+      isDeleted: false,
+      OR: [
+        { title: { contains: keyword, mode: "insensitive" } },
+        { content: { contains: keyword, mode: "insensitive" } },
+      ],
+    },
+    orderBy: { createdAt: "desc" },
+    skip: offset,
+    take: limit,
+    include: {
+      user: { select: { name: true } },
+      category: { select: { name: true } },
+      _count: {
+        select: {
+          likes: true,
+          comments: {
+            where: { isDeleted: false },
+          },
+        },
+      },
+    },
+  });
 
-  return rows as DbPost[];
+  return posts.map(mapPost);
 }
 
 export async function getMyPosts(userId: number): Promise<DbPost[]> {
-  const [rows] = await pool.query<RowDataPacket[]>(
-    `
-    SELECT
-      p.id,
-      p.title,
-      p.content,
-      p.thumbnail,
-      p.created_at,
-      u.name AS author_name,
-      c.name AS category_name,
-      (
-        SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id
-      ) AS likes_count,
-      (
-        SELECT COUNT(*) FROM comments cm
-        WHERE cm.post_id = p.id AND cm.is_deleted = 0
-      ) AS comments_count
-    FROM posts p
-    JOIN users u ON u.id = p.user_id
-    JOIN categories c ON c.id = p.category_id
-    WHERE p.user_id = ?
-      AND p.is_deleted = 0
-    ORDER BY p.created_at DESC
-    `,
-    [userId],
-  );
+  const posts = await prisma.post.findMany({
+    where: {
+      userId: BigInt(userId),
+      isDeleted: false,
+    },
+    orderBy: { createdAt: "desc" },
+    include: {
+      user: { select: { name: true } },
+      category: { select: { name: true } },
+      _count: {
+        select: {
+          likes: true,
+          comments: {
+            where: { isDeleted: false },
+          },
+        },
+      },
+    },
+  });
 
-  return rows as DbPost[];
+  return posts.map(mapPost);
 }

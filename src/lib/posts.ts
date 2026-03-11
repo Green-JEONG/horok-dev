@@ -1,5 +1,4 @@
-import type mysql from "mysql2/promise";
-import { pool } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 
 export type PostRow = {
   id: number;
@@ -12,77 +11,76 @@ export type PostRow = {
   is_deleted: boolean;
 };
 
-let postViewsTableReady: Promise<void> | null = null;
-
-async function ensurePostViewsTable() {
-  if (!postViewsTableReady) {
-    postViewsTableReady = pool
-      .query(
-        `
-        CREATE TABLE IF NOT EXISTS post_views (
-          post_id BIGINT UNSIGNED NOT NULL,
-          view_count BIGINT UNSIGNED NOT NULL DEFAULT 0,
-          updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-            ON UPDATE CURRENT_TIMESTAMP,
-          PRIMARY KEY (post_id),
-          CONSTRAINT fk_post_views_post
-            FOREIGN KEY (post_id) REFERENCES posts(id)
-            ON DELETE CASCADE
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-        `,
-      )
-      .then(() => undefined);
-  }
-
-  await postViewsTableReady;
-}
-
-export async function getPostById(id: number) {
-  const [rows] = await pool.query<mysql.RowDataPacket[]>(
-    "SELECT * FROM posts WHERE id = ?",
-    [id],
-  );
-  return (rows[0] as PostRow | undefined) ?? null;
-}
-
 export type PopularPostRow = {
   id: number;
   title: string;
   viewCount: number;
 };
 
-export async function incrementPostViews(postId: number) {
-  await ensurePostViewsTable();
+function mapPost(post: {
+  id: bigint;
+  userId: bigint;
+  categoryId: bigint;
+  title: string;
+  content: string;
+  createdAt: Date;
+  updatedAt: Date;
+  isDeleted: boolean;
+}) {
+  return {
+    id: Number(post.id),
+    user_id: Number(post.userId),
+    category_id: Number(post.categoryId),
+    title: post.title,
+    content: post.content,
+    created_at: post.createdAt.toISOString(),
+    updated_at: post.updatedAt.toISOString(),
+    is_deleted: post.isDeleted,
+  };
+}
 
-  await pool.query(
-    `
-    INSERT INTO post_views (post_id, view_count)
-    VALUES (?, 1)
-    ON DUPLICATE KEY UPDATE view_count = view_count + 1
-    `,
-    [postId],
-  );
+export async function getPostById(id: number) {
+  const post = await prisma.post.findUnique({
+    where: { id: BigInt(id) },
+  });
+
+  return post ? mapPost(post) : null;
+}
+
+export async function incrementPostViews(postId: number) {
+  await prisma.postView.upsert({
+    where: { postId: BigInt(postId) },
+    update: {
+      viewCount: {
+        increment: 1,
+      },
+    },
+    create: {
+      postId: BigInt(postId),
+      viewCount: 1,
+    },
+  });
 }
 
 export async function getPopularPosts(limit = 5): Promise<PopularPostRow[]> {
-  await ensurePostViewsTable();
+  const posts = await prisma.post.findMany({
+    where: { isDeleted: false },
+    include: {
+      views: {
+        select: { viewCount: true },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
 
-  const [rows] = await pool.query<mysql.RowDataPacket[]>(
-    `
-    SELECT
-      p.id,
-      p.title,
-      COALESCE(pv.view_count, 0) AS viewCount
-    FROM posts p
-    LEFT JOIN post_views pv ON pv.post_id = p.id
-    WHERE p.is_deleted = 0
-    ORDER BY viewCount DESC, p.created_at DESC
-    LIMIT ?
-    `,
-    [limit],
-  );
-
-  return rows as PopularPostRow[];
+  return posts
+    .map((post) => ({
+      id: Number(post.id),
+      title: post.title,
+      viewCount: Number(post.views?.viewCount ?? 0),
+    }))
+    .sort((a, b) => b.viewCount - a.viewCount || b.id - a.id)
+    .slice(0, limit);
 }
 
 export async function createPost(params: {
@@ -93,12 +91,16 @@ export async function createPost(params: {
 }) {
   const { userId, categoryId, title, content } = params;
 
-  const [result] = await pool.query<mysql.ResultSetHeader>(
-    `INSERT INTO posts (user_id, category_id, title, content) VALUES (?, ?, ?, ?)`,
-    [userId, categoryId, title, content],
-  );
+  const post = await prisma.post.create({
+    data: {
+      userId: BigInt(userId),
+      categoryId: BigInt(categoryId),
+      title,
+      content,
+    },
+  });
 
-  return getPostById(result.insertId);
+  return mapPost(post);
 }
 
 export async function updatePost(params: {
@@ -108,16 +110,20 @@ export async function updatePost(params: {
 }) {
   const { postId, title, content } = params;
 
-  await pool.query(
-    `UPDATE posts
-     SET title = ?, content = ?
-     WHERE id = ?`,
-    [title, content, postId],
-  );
+  const post = await prisma.post.update({
+    where: { id: BigInt(postId) },
+    data: { title, content },
+  });
 
-  return getPostById(postId);
+  return mapPost(post);
 }
 
 export async function deletePost(postId: number) {
-  await pool.query("DELETE FROM posts WHERE id = ?", [postId]);
+  await prisma.post.update({
+    where: { id: BigInt(postId) },
+    data: {
+      isDeleted: true,
+      deletedAt: new Date(),
+    },
+  });
 }

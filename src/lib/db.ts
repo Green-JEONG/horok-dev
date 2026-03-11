@@ -1,13 +1,5 @@
-import type { RowDataPacket } from "mysql2/promise";
-import mysql from "mysql2/promise";
-
-const DATABASE_URL = process.env.DATABASE_URL;
-if (!DATABASE_URL) throw new Error("Missing DATABASE_URL");
-
-export const pool = mysql.createPool({
-  uri: DATABASE_URL,
-  connectionLimit: 10,
-});
+import { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 
 export type DbUser = {
   id: string;
@@ -16,15 +8,91 @@ export type DbUser = {
   name: string | null;
   role: "USER" | "ADMIN";
   provider: "credentials" | "github" | "google";
-  github_id: string | null; // OAuth 공용 ID로 사용
+  github_id: string | null;
 };
 
+export type DbPost = {
+  id: number;
+  title: string;
+  content: string;
+  thumbnail: string | null;
+  created_at: Date;
+  author_name: string;
+  category_name: string;
+  likes_count: number;
+  comments_count: number;
+  user_id?: number;
+};
+
+export type DbContribution = {
+  date: string;
+  count: number;
+};
+
+function bigintToNumber(value: bigint | number) {
+  return typeof value === "bigint" ? Number(value) : value;
+}
+
+function mapUser(user: {
+  id: bigint;
+  email: string;
+  password: string | null;
+  name: string | null;
+  role: "USER" | "ADMIN";
+  provider: "credentials" | "github" | "google";
+  githubId: string | null;
+}): DbUser {
+  return {
+    id: user.id.toString(),
+    email: user.email,
+    password: user.password,
+    name: user.name,
+    role: user.role,
+    provider: user.provider,
+    github_id: user.githubId,
+  };
+}
+
+function mapPost(post: {
+  id: bigint;
+  title: string;
+  content: string;
+  thumbnail: string | null;
+  createdAt: Date;
+  userId?: bigint;
+  user: { name: string | null };
+  category: { name: string };
+  _count?: { likes?: number; comments?: number };
+}): DbPost {
+  return {
+    id: bigintToNumber(post.id),
+    title: post.title,
+    content: post.content,
+    thumbnail: post.thumbnail,
+    created_at: post.createdAt,
+    author_name: post.user.name ?? "Unknown",
+    category_name: post.category.name,
+    likes_count: post._count?.likes ?? 0,
+    comments_count: post._count?.comments ?? 0,
+    user_id: post.userId ? bigintToNumber(post.userId) : undefined,
+  };
+}
+
 export async function findUserByEmail(email: string) {
-  const [rows] = await pool.query<mysql.RowDataPacket[]>(
-    "SELECT * FROM users WHERE email = ? LIMIT 1",
-    [email],
-  );
-  return (rows[0] as DbUser | undefined) ?? null;
+  const user = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  return user ? mapUser(user) : null;
+}
+
+export async function getUserIdByEmail(email: string) {
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true },
+  });
+
+  return user ? bigintToNumber(user.id) : null;
 }
 
 export async function createUser(params: {
@@ -35,16 +103,23 @@ export async function createUser(params: {
 }) {
   const { email, passwordHash, name = null, role = "USER" } = params;
 
-  await pool.query(
-    "INSERT INTO users (email, password, name, role, provider) VALUES (?, ?, ?, ?, 'credentials')",
-    [email, passwordHash, name, role],
-  );
+  const user = await prisma.user.create({
+    data: {
+      email,
+      password: passwordHash,
+      name,
+      role,
+      provider: "credentials",
+    },
+  });
 
-  return findUserByEmail(email);
+  return mapUser(user);
 }
 
 export async function deleteUserById(userId: string) {
-  await pool.query("DELETE FROM users WHERE id = ?", [userId]);
+  await prisma.user.delete({
+    where: { id: BigInt(userId) },
+  });
 }
 
 export async function upsertOAuthUser(params: {
@@ -54,84 +129,106 @@ export async function upsertOAuthUser(params: {
   providerId: string;
 }) {
   const { email, name = null, provider, providerId } = params;
-
   const role = email === "th2gr22n@gmail.com" ? "ADMIN" : "USER";
 
-  await pool.query(
-    `
-    INSERT INTO users (email, name, role, provider, github_id)
-    VALUES (?, ?, ?, ?, ?)
-    ON DUPLICATE KEY UPDATE
-      name = COALESCE(VALUES(name), name),
-      provider = VALUES(provider),
-      github_id = COALESCE(github_id, VALUES(github_id))
-    `,
-    [email, name, role, provider, providerId],
-  );
+  const user = await prisma.user.upsert({
+    where: { email },
+    update: {
+      name: name ?? undefined,
+      provider,
+      githubId: providerId,
+    },
+    create: {
+      email,
+      name,
+      role,
+      provider,
+      githubId: providerId,
+    },
+  });
 
-  return findUserByEmail(email);
+  return mapUser(user);
 }
-
-export type DbPost = {
-  id: number;
-  title: string;
-  content: string;
-  created_at: Date;
-  author_name: string;
-  category_name: string;
-  likes_count: number;
-  comments_count: number;
-};
 
 export async function findPostsPaged(
   limit: number,
   offset: number,
 ): Promise<DbPost[]> {
-  const [rows] = await pool.query<RowDataPacket[]>(
-    `
-    SELECT
-      p.id,
-      p.title,
-      p.content,
-      p.thumbnail,
-      p.created_at,
-      u.name AS author_name,
-      c.name AS category_name,
-      0 AS likes_count,
-      0 AS comments_count
-    FROM posts p
-    JOIN users u ON u.id = p.user_id
-    JOIN categories c ON c.id = p.category_id
-    ORDER BY p.created_at DESC
-    LIMIT ? OFFSET ?
-    `,
-    [limit, offset],
-  );
+  const posts = await prisma.post.findMany({
+    where: { isDeleted: false },
+    orderBy: { createdAt: "desc" },
+    skip: offset,
+    take: limit,
+    include: {
+      user: { select: { name: true } },
+      category: { select: { name: true } },
+      _count: {
+        select: {
+          likes: true,
+          comments: {
+            where: { isDeleted: false },
+          },
+        },
+      },
+    },
+  });
 
-  return rows as DbPost[];
+  return posts.map(mapPost);
 }
 
 export async function findPostById(id: number) {
-  const [rows] = await pool.query(
-    `
-    SELECT
-      p.id,
-      p.title,
-      p.content,
-      p.thumbnail,
-      p.created_at,
-      u.name AS author_name,
-      c.name AS category_name
-    FROM posts p
-    JOIN users u ON u.id = p.user_id
-    JOIN categories c ON c.id = p.category_id
-    WHERE p.id = ?
-    LIMIT 1
-    `,
-    [id],
-  );
+  const post = await prisma.post.findUnique({
+    where: { id: BigInt(id) },
+    include: {
+      user: { select: { name: true } },
+      category: { select: { name: true } },
+      _count: {
+        select: {
+          likes: true,
+          comments: {
+            where: { isDeleted: false },
+          },
+        },
+      },
+    },
+  });
 
-  return (rows as DbPost[])[0] ?? null;
+  return post ? mapPost(post) : null;
+}
+
+async function searchPostsInternal(
+  keyword: string,
+  limit: number,
+  offset: number,
+) {
+  const where: Prisma.PostWhereInput = {
+    isDeleted: false,
+    OR: [
+      { title: { contains: keyword, mode: "insensitive" } },
+      { content: { contains: keyword, mode: "insensitive" } },
+    ],
+  };
+
+  const posts = await prisma.post.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    skip: offset,
+    take: limit,
+    include: {
+      user: { select: { name: true } },
+      category: { select: { name: true } },
+      _count: {
+        select: {
+          likes: true,
+          comments: {
+            where: { isDeleted: false },
+          },
+        },
+      },
+    },
+  });
+
+  return posts.map(mapPost);
 }
 
 export async function findPostsByKeywordPaged(
@@ -139,54 +236,27 @@ export async function findPostsByKeywordPaged(
   limit: number,
   offset: number,
 ) {
-  const [rows] = await pool.query(
-    `
-    SELECT
-      p.id,
-      p.title,
-      p.content,
-      p.thumbnail,
-      p.created_at,
-      u.name AS author_name,
-      c.name AS category_name,
-      0 AS likes_count,
-      0 AS comments_count
-    FROM posts p
-    JOIN users u ON u.id = p.user_id
-    JOIN categories c ON c.id = p.category_id
-    WHERE
-      p.title LIKE ? OR
-      p.content LIKE ?
-    ORDER BY p.created_at DESC
-    LIMIT ? OFFSET ?
-    `,
-    [`%${keyword}%`, `%${keyword}%`, limit, offset],
-  );
-
-  return rows as DbPost[];
+  return searchPostsInternal(keyword, limit, offset);
 }
 
-export type DbContribution = {
-  date: string; // YYYY-MM-DD
-  count: number;
-};
-
 export async function findUserContributions(userId: number) {
-  const [rows] = await pool.query<RowDataPacket[]>(
-    `
-    SELECT
-      DATE_FORMAT(created_at, '%Y-%m-%d') AS date,
-      COUNT(*) AS count
-    FROM posts
-    WHERE user_id = ?
-      AND is_deleted = 0
-    GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d')
-    ORDER BY date
-    `,
-    [userId],
-  );
+  const posts = await prisma.post.findMany({
+    where: {
+      userId: BigInt(userId),
+      isDeleted: false,
+    },
+    select: { createdAt: true },
+    orderBy: { createdAt: "asc" },
+  });
 
-  return rows as { date: string; count: number }[];
+  const counts = new Map<string, number>();
+
+  for (const post of posts) {
+    const date = post.createdAt.toISOString().slice(0, 10);
+    counts.set(date, (counts.get(date) ?? 0) + 1);
+  }
+
+  return Array.from(counts.entries()).map(([date, count]) => ({ date, count }));
 }
 
 export async function searchPosts(
@@ -194,27 +264,5 @@ export async function searchPosts(
   limit: number,
   offset: number,
 ) {
-  const [rows] = await pool.query<RowDataPacket[]>(
-    `
-    SELECT
-      p.id,
-      p.title,
-      p.content,
-      p.thumbnail,
-      p.created_at,
-      u.name AS author_name,
-      c.name AS category_name,
-      0 AS likes_count,
-      0 AS comments_count
-    FROM posts p
-    JOIN users u ON u.id = p.user_id
-    JOIN categories c ON c.id = p.category_id
-    WHERE MATCH(p.title, p.content) AGAINST (? IN BOOLEAN MODE)
-    ORDER BY p.created_at DESC
-    LIMIT ? OFFSET ?
-    `,
-    [`${keyword}*`, limit, offset],
-  );
-
-  return rows;
+  return searchPostsInternal(keyword, limit, offset);
 }

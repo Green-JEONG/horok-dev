@@ -1,14 +1,12 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { auth } from "@/app/api/auth/[...nextauth]/route";
+import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
   title: "Admin | Horok Tech",
   description: "관리자 페이지",
 };
-
-import { auth } from "@/app/api/auth/[...nextauth]/route";
-import { redirect } from "next/navigation";
-import { pool } from "@/lib/db";
-import type { RowDataPacket, ResultSetHeader } from "mysql2/promise";
 
 type Category = { id: number; name: string };
 type UserRow = {
@@ -49,7 +47,7 @@ const LIMIT_COMMENTS = 30;
 
 function clampText(s: string, n: number) {
   const t = s ?? "";
-  return t.length > n ? t.slice(0, n) + "…" : t;
+  return t.length > n ? `${t.slice(0, n)}...` : t;
 }
 
 export default async function AdminPage() {
@@ -59,136 +57,105 @@ export default async function AdminPage() {
   if (!session) redirect("/");
   if (role !== "ADMIN") redirect("/");
 
-  // ====== 데이터 로드 ======
-  const [catRows] = await pool.query<RowDataPacket[]>(
-    `SELECT id, name FROM categories ORDER BY name ASC`,
-  );
+  const [catRows, userRows, postRows, commentRows] = await Promise.all([
+    prisma.category.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    prisma.user.findMany({
+      orderBy: { createdAt: "desc" },
+      take: LIMIT_USERS,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        provider: true,
+        createdAt: true,
+      },
+    }),
+    prisma.post.findMany({
+      orderBy: { createdAt: "desc" },
+      take: LIMIT_POSTS,
+      include: {
+        user: { select: { email: true, name: true } },
+        category: { select: { name: true } },
+      },
+    }),
+    prisma.comment.findMany({
+      orderBy: { createdAt: "desc" },
+      take: LIMIT_COMMENTS,
+      include: {
+        user: { select: { email: true, name: true } },
+        post: { select: { title: true } },
+      },
+    }),
+  ]);
 
   const categories: Category[] = catRows.map((r) => ({
     id: Number(r.id),
-    name: String(r.name),
+    name: r.name,
   }));
-
-  const [userRows] = await pool.query<RowDataPacket[]>(
-    `
-    SELECT id, name, email, role, provider, created_at
-    FROM users
-    ORDER BY created_at DESC
-    LIMIT ?
-    `,
-    [LIMIT_USERS],
-  );
 
   const users: UserRow[] = userRows.map((r) => ({
-    id: String(r.id),
-    name: r.name ? String(r.name) : null,
-    email: String(r.email),
-    role: (r.role as "USER" | "ADMIN") ?? "USER",
-    provider: r.provider ? String(r.provider) : null,
-    created_at: String(r.created_at),
+    id: r.id.toString(),
+    name: r.name,
+    email: r.email,
+    role: r.role,
+    provider: r.provider,
+    created_at: r.createdAt.toISOString(),
   }));
-
-  const [postRows] = await pool.query<RowDataPacket[]>(
-    `
-    SELECT
-      p.id,
-      p.title,
-      p.content,
-      p.created_at,
-      p.is_deleted,
-      p.user_id,
-      p.category_id,
-      u.email AS author_email,
-      u.name  AS author_name,
-      c.name  AS category_name
-    FROM posts p
-    LEFT JOIN users u ON u.id = p.user_id
-    LEFT JOIN categories c ON c.id = p.category_id
-    ORDER BY p.created_at DESC
-    LIMIT ?
-    `,
-    [LIMIT_POSTS],
-  );
 
   const posts: PostRow[] = postRows.map((r) => ({
     id: Number(r.id),
-    title: String(r.title),
-    content: String(r.content ?? ""),
-    created_at: String(r.created_at),
-    is_deleted: Number(r.is_deleted ?? 0),
-    user_id: String(r.user_id),
-    author_email: r.author_email ? String(r.author_email) : null,
-    author_name: r.author_name ? String(r.author_name) : null,
-    category_id: Number(r.category_id),
-    category_name: r.category_name ? String(r.category_name) : null,
+    title: r.title,
+    content: r.content,
+    created_at: r.createdAt.toISOString(),
+    is_deleted: r.isDeleted ? 1 : 0,
+    user_id: r.userId.toString(),
+    author_email: r.user?.email ?? null,
+    author_name: r.user?.name ?? null,
+    category_id: Number(r.categoryId),
+    category_name: r.category?.name ?? null,
   }));
-
-  const [commentRows] = await pool.query<RowDataPacket[]>(
-    `
-    SELECT
-      cm.id,
-      cm.post_id,
-      cm.user_id,
-      cm.content,
-      cm.is_deleted,
-      cm.created_at,
-      u.email AS author_email,
-      u.name  AS author_name,
-      p.title AS post_title
-    FROM comments cm
-    LEFT JOIN users u ON u.id = cm.user_id
-    LEFT JOIN posts p ON p.id = cm.post_id
-    ORDER BY cm.created_at DESC
-    LIMIT ?
-    `,
-    [LIMIT_COMMENTS],
-  );
 
   const comments: CommentRow[] = commentRows.map((r) => ({
     id: Number(r.id),
-    post_id: Number(r.post_id),
-    user_id: String(r.user_id),
-    author_email: r.author_email ? String(r.author_email) : null,
-    author_name: r.author_name ? String(r.author_name) : null,
-    content: String(r.content ?? ""),
-    is_deleted: Number(r.is_deleted ?? 0),
-    created_at: String(r.created_at),
-    post_title: r.post_title ? String(r.post_title) : null,
+    post_id: Number(r.postId),
+    user_id: r.userId.toString(),
+    author_email: r.user?.email ?? null,
+    author_name: r.user?.name ?? null,
+    content: r.content,
+    is_deleted: r.isDeleted ? 1 : 0,
+    created_at: r.createdAt.toISOString(),
+    post_title: r.post?.title ?? null,
   }));
 
-  // ====== Server Actions (이 파일 하나 안에서 처리) ======
   async function createPostAction(formData: FormData) {
     "use server";
     const session = await auth();
-    if (!session || session.user.role !== "ADMIN") return;
+    if (!session || session.user.role !== "ADMIN" || !session.user.email) return;
 
     const title = String(formData.get("title") ?? "").trim();
     const content = String(formData.get("content") ?? "").trim();
     const categoryId = Number(formData.get("categoryId") ?? 0);
 
-    if (!title || !content || Number.isNaN(categoryId) || categoryId <= 0)
-      return;
+    if (!title || !content || Number.isNaN(categoryId) || categoryId <= 0) return;
 
-    // ✅ 관리자 글 작성: 작성자(user_id)는 현재 로그인한 "users.id"와 타입이 맞아야 함
-    // 프로젝트 DB가 users.id를 숫자/문자 혼용 중이라 안전하게 "이메일 기반으로 users.id 조회" 후 사용합니다.
-    const email = session.user.email;
-    if (!email) return;
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { id: true },
+    });
+    if (!user) return;
 
-    const [urows] = await pool.query<RowDataPacket[]>(
-      `SELECT id FROM users WHERE email = ? LIMIT 1`,
-      [email],
-    );
-    if (urows.length === 0) return;
-
-    const userId = String(urows[0].id);
-
-    await pool.query<ResultSetHeader>(
-      `
-      INSERT INTO posts (user_id, category_id, title, content)
-      VALUES (?, ?, ?, ?)
-      `,
-      [userId, categoryId, title, content],
-    );
+    await prisma.post.create({
+      data: {
+        userId: user.id,
+        categoryId: BigInt(categoryId),
+        title,
+        content,
+      },
+    });
   }
 
   async function updatePostAction(formData: FormData) {
@@ -202,17 +169,16 @@ export default async function AdminPage() {
     const categoryId = Number(formData.get("categoryId") ?? 0);
 
     if (Number.isNaN(postId) || postId <= 0) return;
-    if (!title || !content || Number.isNaN(categoryId) || categoryId <= 0)
-      return;
+    if (!title || !content || Number.isNaN(categoryId) || categoryId <= 0) return;
 
-    await pool.query<ResultSetHeader>(
-      `
-      UPDATE posts
-      SET title = ?, content = ?, category_id = ?
-      WHERE id = ?
-      `,
-      [title, content, categoryId, postId],
-    );
+    await prisma.post.update({
+      where: { id: BigInt(postId) },
+      data: {
+        title,
+        content,
+        categoryId: BigInt(categoryId),
+      },
+    });
   }
 
   async function deletePostAction(formData: FormData) {
@@ -223,14 +189,13 @@ export default async function AdminPage() {
     const postId = Number(formData.get("postId") ?? 0);
     if (Number.isNaN(postId) || postId <= 0) return;
 
-    await pool.query<ResultSetHeader>(
-      `
-      UPDATE posts
-      SET is_deleted = 1, deleted_at = NOW()
-      WHERE id = ?
-      `,
-      [postId],
-    );
+    await prisma.post.update({
+      where: { id: BigInt(postId) },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+    });
   }
 
   async function deleteCommentAction(formData: FormData) {
@@ -241,14 +206,10 @@ export default async function AdminPage() {
     const commentId = Number(formData.get("commentId") ?? 0);
     if (Number.isNaN(commentId) || commentId <= 0) return;
 
-    await pool.query<ResultSetHeader>(
-      `
-      UPDATE comments
-      SET is_deleted = 1
-      WHERE id = ?
-      `,
-      [commentId],
-    );
+    await prisma.comment.update({
+      where: { id: BigInt(commentId) },
+      data: { isDeleted: true },
+    });
   }
 
   async function changeUserRoleAction(formData: FormData) {
@@ -260,14 +221,10 @@ export default async function AdminPage() {
     const role = String(formData.get("role") ?? "USER");
     if (!userId || (role !== "USER" && role !== "ADMIN")) return;
 
-    await pool.query<ResultSetHeader>(
-      `
-      UPDATE users
-      SET role = ?
-      WHERE id = ?
-      `,
-      [role, userId],
-    );
+    await prisma.user.update({
+      where: { id: BigInt(userId) },
+      data: { role },
+    });
   }
 
   async function deleteUserAction(formData: FormData) {
@@ -278,14 +235,13 @@ export default async function AdminPage() {
     const userId = String(formData.get("userId") ?? "");
     if (!userId) return;
 
-    await pool.query<ResultSetHeader>(`DELETE FROM users WHERE id = ?`, [
-      userId,
-    ]);
+    await prisma.user.delete({
+      where: { id: BigInt(userId) },
+    });
   }
 
-  // ====== UI ======
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10 space-y-10">
+    <main className="mx-auto max-w-6xl space-y-10 px-4 py-10">
       <header className="flex items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Admin</h1>
@@ -298,9 +254,8 @@ export default async function AdminPage() {
         </div>
       </header>
 
-      {/* ===== 글쓰기 ===== */}
-      <section className="rounded-2xl border p-6 bg-background">
-        <h2 className="text-lg font-semibold mb-4">글쓰기</h2>
+      <section className="rounded-2xl border bg-background p-6">
+        <h2 className="mb-4 text-lg font-semibold">글쓰기</h2>
 
         <form action={createPostAction} className="space-y-3">
           <div className="grid gap-3 md:grid-cols-3">
@@ -348,9 +303,8 @@ export default async function AdminPage() {
         </form>
       </section>
 
-      {/* ===== 글 관리 (수정/삭제) ===== */}
-      <section className="rounded-2xl border p-6 bg-background">
-        <h2 className="text-lg font-semibold mb-4">글 관리</h2>
+      <section className="rounded-2xl border bg-background p-6">
+        <h2 className="mb-4 text-lg font-semibold">글 관리</h2>
 
         <div className="space-y-4">
           {posts.length === 0 ? (
@@ -359,7 +313,7 @@ export default async function AdminPage() {
             posts.map((p) => (
               <div
                 key={p.id}
-                className="rounded-xl border p-4 bg-muted/30 space-y-3"
+                className="space-y-3 rounded-xl border bg-muted/30 p-4"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -379,7 +333,7 @@ export default async function AdminPage() {
                   </div>
 
                   <a
-                    className="text-xs underline text-muted-foreground hover:text-foreground"
+                    className="text-xs text-muted-foreground underline hover:text-foreground"
                     href={`/posts/${p.id}`}
                     target="_blank"
                     rel="noreferrer"
@@ -388,7 +342,6 @@ export default async function AdminPage() {
                   </a>
                 </div>
 
-                {/* 수정 폼 */}
                 <form action={updatePostAction} className="space-y-2">
                   <input type="hidden" name="postId" value={p.id} />
 
@@ -430,7 +383,6 @@ export default async function AdminPage() {
                   </div>
                 </form>
 
-                {/* 삭제 폼 */}
                 <form action={deletePostAction}>
                   <input type="hidden" name="postId" value={p.id} />
                   <button
@@ -446,9 +398,8 @@ export default async function AdminPage() {
         </div>
       </section>
 
-      {/* ===== 댓글 관리 (삭제) ===== */}
-      <section className="rounded-2xl border p-6 bg-background">
-        <h2 className="text-lg font-semibold mb-4">댓글 관리 (삭제)</h2>
+      <section className="rounded-2xl border bg-background p-6">
+        <h2 className="mb-4 text-lg font-semibold">댓글 관리 (삭제)</h2>
 
         <div className="space-y-3">
           {comments.length === 0 ? (
@@ -457,7 +408,7 @@ export default async function AdminPage() {
             comments.map((c) => (
               <div
                 key={c.id}
-                className="rounded-xl border p-4 bg-muted/30 flex items-start justify-between gap-4"
+                className="flex items-start justify-between gap-4 rounded-xl border bg-muted/30 p-4"
               >
                 <div className="min-w-0">
                   <p className="text-sm font-semibold">
@@ -476,7 +427,7 @@ export default async function AdminPage() {
                   </p>
 
                   <a
-                    className="mt-1 inline-block text-xs underline text-muted-foreground hover:text-foreground"
+                    className="mt-1 inline-block text-xs text-muted-foreground underline hover:text-foreground"
                     href={`/posts/${c.post_id}`}
                     target="_blank"
                     rel="noreferrer"
@@ -500,9 +451,8 @@ export default async function AdminPage() {
         </div>
       </section>
 
-      {/* ===== 회원 관리 ===== */}
-      <section className="rounded-2xl border p-6 bg-background">
-        <h2 className="text-lg font-semibold mb-4">회원 관리</h2>
+      <section className="rounded-2xl border bg-background p-6">
+        <h2 className="mb-4 text-lg font-semibold">회원 관리</h2>
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -520,16 +470,12 @@ export default async function AdminPage() {
             <tbody>
               {users.map((u) => (
                 <tr key={u.id} className="border-b align-top">
-                  <td className="py-2 pr-4 whitespace-nowrap">{u.id}</td>
-                  <td className="py-2 pr-4 whitespace-nowrap">
-                    {u.name ?? "-"}
-                  </td>
+                  <td className="whitespace-nowrap py-2 pr-4">{u.id}</td>
+                  <td className="whitespace-nowrap py-2 pr-4">{u.name ?? "-"}</td>
                   <td className="py-2 pr-4">{u.email}</td>
-                  <td className="py-2 pr-4 whitespace-nowrap">
+                  <td className="whitespace-nowrap py-2 pr-4">
                     {u.provider ?? "-"}
                   </td>
-
-                  {/* Role 변경 */}
                   <td className="py-2 pr-4">
                     <form
                       action={changeUserRoleAction}
@@ -552,12 +498,7 @@ export default async function AdminPage() {
                       </button>
                     </form>
                   </td>
-
-                  <td className="py-2 pr-4 whitespace-nowrap">
-                    {u.created_at}
-                  </td>
-
-                  {/* 회원 삭제 */}
+                  <td className="whitespace-nowrap py-2 pr-4">{u.created_at}</td>
                   <td className="py-2 pr-0">
                     <form action={deleteUserAction}>
                       <input type="hidden" name="userId" value={u.id} />

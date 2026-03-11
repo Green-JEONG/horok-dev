@@ -1,28 +1,12 @@
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-import { auth } from "@/app/api/auth/[...nextauth]/route";
 import {
   getCommentById,
   updateComment,
   softDeleteComment,
 } from "@/lib/comments";
-import { pool } from "@/lib/db";
-import type { RowDataPacket } from "mysql2/promise";
-
-/**
- * 공통: 세션 → DB userId(BIGINT) 변환
- */
-async function getDbUserId() {
-  const session = await auth();
-  if (!session?.user?.email) return null;
-
-  const [rows] = await pool.query<RowDataPacket[]>(
-    `SELECT id FROM users WHERE email = ? LIMIT 1`,
-    [session.user.email],
-  );
-
-  return rows.length > 0 ? (rows[0].id as number) : null;
-}
+import type { NextRequest } from "next/server";
+import { auth } from "@/app/api/auth/[...nextauth]/route";
+import { getDbUserIdFromSession } from "@/lib/auth-db";
 
 /**
  * 댓글 수정 (작성자만 가능)
@@ -41,7 +25,7 @@ export async function PUT(
     );
   }
 
-  const dbUserId = await getDbUserId();
+  const dbUserId = await getDbUserIdFromSession();
   if (!dbUserId) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
@@ -88,7 +72,7 @@ export async function DELETE(
     );
   }
 
-  const dbUserId = await getDbUserId();
+  const dbUserId = await getDbUserIdFromSession();
   if (!dbUserId) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }

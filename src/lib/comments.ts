@@ -1,5 +1,4 @@
-import type mysql from "mysql2/promise";
-import { pool } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 
 export type CommentRow = {
   id: number;
@@ -12,35 +11,51 @@ export type CommentRow = {
   updated_at: string;
 };
 
-export async function getCommentsByPost(postId: number) {
-  const [rows] = await pool.query<mysql.RowDataPacket[]>(
-    `
-    SELECT
-      c.id,
-      c.post_id,
-      c.user_id,
-      c.parent_id,
-      c.content,
-      c.is_deleted,
-      c.created_at,
-      u.email AS author
-    FROM comments c
-    JOIN users u ON c.user_id = u.id
-    WHERE c.post_id = ?
-    ORDER BY c.created_at ASC
-    `,
-    [postId],
-  );
+function mapComment(comment: {
+  id: bigint;
+  postId: bigint;
+  userId: bigint;
+  parentId: bigint | null;
+  content: string;
+  isDeleted: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}) {
+  return {
+    id: Number(comment.id),
+    post_id: Number(comment.postId),
+    user_id: Number(comment.userId),
+    parent_id: comment.parentId ? Number(comment.parentId) : null,
+    content: comment.content,
+    is_deleted: comment.isDeleted,
+    created_at: comment.createdAt.toISOString(),
+    updated_at: comment.updatedAt.toISOString(),
+  };
+}
 
-  return rows;
+export async function getCommentsByPost(postId: number) {
+  const comments = await prisma.comment.findMany({
+    where: { postId: BigInt(postId) },
+    orderBy: { createdAt: "asc" },
+    include: {
+      user: {
+        select: { email: true },
+      },
+    },
+  });
+
+  return comments.map((comment) => ({
+    ...mapComment(comment),
+    author: comment.user.email,
+  }));
 }
 
 export async function getCommentById(id: number) {
-  const [rows] = await pool.query<mysql.RowDataPacket[]>(
-    "SELECT * FROM comments WHERE id = ?",
-    [id],
-  );
-  return (rows[0] as CommentRow | undefined) ?? null;
+  const comment = await prisma.comment.findUnique({
+    where: { id: BigInt(id) },
+  });
+
+  return comment ? mapComment(comment) : null;
 }
 
 export async function createComment(params: {
@@ -51,15 +66,16 @@ export async function createComment(params: {
 }) {
   const { postId, userId, content, parentId = null } = params;
 
-  const [result] = await pool.query<mysql.ResultSetHeader>(
-    `
-    INSERT INTO comments (post_id, user_id, parent_id, content)
-    VALUES (?, ?, ?, ?)
-    `,
-    [postId, userId, parentId, content],
-  );
+  const comment = await prisma.comment.create({
+    data: {
+      postId: BigInt(postId),
+      userId: BigInt(userId),
+      content,
+      parentId: parentId ? BigInt(parentId) : null,
+    },
+  });
 
-  return getCommentById(result.insertId);
+  return Number(comment.id);
 }
 
 export async function updateComment(params: {
@@ -68,25 +84,17 @@ export async function updateComment(params: {
 }) {
   const { commentId, content } = params;
 
-  await pool.query(
-    `
-    UPDATE comments
-    SET content = ?
-    WHERE id = ?
-    `,
-    [content, commentId],
-  );
+  const comment = await prisma.comment.update({
+    where: { id: BigInt(commentId) },
+    data: { content },
+  });
 
-  return getCommentById(commentId);
+  return mapComment(comment);
 }
 
 export async function softDeleteComment(commentId: number) {
-  await pool.query(
-    `
-    UPDATE comments
-    SET is_deleted = TRUE
-    WHERE id = ?
-    `,
-    [commentId],
-  );
+  await prisma.comment.update({
+    where: { id: BigInt(commentId) },
+    data: { isDeleted: true },
+  });
 }
