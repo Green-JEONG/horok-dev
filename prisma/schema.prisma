@@ -1,0 +1,171 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum AuthProvider {
+  credentials
+  github
+  google
+}
+
+model User {
+  id            BigInt      @id @default(autoincrement())
+  email         String      @unique @db.VarChar(255)
+  password      String?     @db.VarChar(255)
+  name          String?     @db.VarChar(100)
+  role          Role        @default(USER)
+  provider      AuthProvider
+  githubId      String?     @unique @map("github_id") @db.VarChar(50)
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @default(now()) @updatedAt @map("updated_at")
+  isBlocked     Boolean     @default(false) @map("is_blocked")
+  blockedAt     DateTime?   @map("blocked_at")
+  blockedReason String?     @map("blocked_reason") @db.VarChar(255)
+  
+  comments      Comment[]
+  receivedNotifications Notification[] @relation("NotificationRecipient")
+  notifications         Notification[] @relation("NotificationActor")
+  postLikes     PostLike[]
+  posts         Post[]
+  friendships   Friend[]    @relation("FriendUser")
+  followers     Friend[]    @relation("FriendFriendUser")
+
+  @@map("users")
+}
+
+model Category {
+  id        BigInt    @id @default(autoincrement())
+  name      String    @db.VarChar(50)
+  slug      String    @unique @db.VarChar(50)
+  createdAt DateTime  @default(now()) @map("created_at")
+  posts     Post[]
+
+  @@map("categories")
+}
+
+model Post {
+  id          BigInt         @id @default(autoincrement())
+  userId      BigInt         @map("user_id")
+  categoryId  BigInt         @map("category_id")
+  title       String         @db.VarChar(200)
+  content     String         @db.Text
+  thumbnail   String?        @db.VarChar(255)
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @default(now()) @updatedAt @map("updated_at")
+  isDeleted   Boolean        @default(false) @map("is_deleted")
+  deletedAt   DateTime?      @map("deleted_at")
+  deletedBy   Int?           @map("deleted_by")
+  
+  category    Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments    Comment[]
+  likes       PostLike[]
+  views       PostView?
+  notifications Notification[]
+
+  @@index([createdAt], map: "idx_posts_created_at")
+  @@map("posts")
+}
+
+model Comment {
+  id            BigInt         @id @default(autoincrement())
+  postId        BigInt         @map("post_id")
+  userId        BigInt         @map("user_id")
+  parentId      BigInt?        @map("parent_id")
+  content       String         @db.Text
+  isDeleted     Boolean        @default(false) @map("is_deleted")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @default(now()) @updatedAt @map("updated_at")
+  
+  parent        Comment?       @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies       Comment[]      @relation("CommentReplies")
+  post          Post           @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notifications Notification[]
+
+  @@index([parentId], map: "fk_comments_parent")
+  @@index([postId], map: "fk_comments_post")
+  @@index([userId], map: "fk_comments_user")
+  @@map("comments")
+}
+
+model PostLike {
+  postId    BigInt   @map("post_id")
+  userId    BigInt   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+  @@index([userId], map: "fk_likes_user")
+  @@map("post_likes")
+}
+
+model PostView {
+  postId     BigInt   @id @map("post_id")
+  viewCount  BigInt   @default(0) @map("view_count")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+  post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@map("post_views")
+}
+
+model StopWord {
+  word String @id @db.VarChar(50)
+
+  @@map("stop_words")
+}
+
+model LegacyStopWord {
+  id        BigInt   @id @default(autoincrement())
+  word      String   @unique @db.VarChar(50)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("StopWord")
+}
+
+model Friend {
+  id           BigInt   @id @default(autoincrement())
+  userId       BigInt   @map("user_id")
+  friendUserId BigInt   @map("friend_user_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  
+  user         User     @relation("FriendUser", fields: [userId], references: [id], onDelete: Cascade)
+  friendUser   User     @relation("FriendFriendUser", fields: [friendUserId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, friendUserId])
+  @@index([friendUserId])
+  @@map("friends")
+}
+
+model Notification {
+  id        BigInt    @id @default(autoincrement())
+  userId    BigInt    @map("user_id")
+  actorId   BigInt?   @map("actor_id")
+  postId    BigInt?   @map("post_id")
+  commentId BigInt?   @map("comment_id")
+  type      String    @db.VarChar(50)
+  content   String?   @db.VarChar(255)
+  isRead    Boolean   @default(false) @map("is_read")
+  createdAt DateTime  @default(now()) @map("created_at")
+  
+  user      User      @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor     User?     @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  post      Post?     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment   Comment?  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@index([actorId])
+  @@index([commentId])
+  @@index([postId])
+  @@index([userId])
+  @@map("notifications")
+}
