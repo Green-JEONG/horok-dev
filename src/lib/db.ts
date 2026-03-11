@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export type DbUser = {
@@ -81,6 +81,23 @@ function mapPost(post: {
 export async function findUserByEmail(email: string) {
   const user = await prisma.user.findUnique({
     where: { email },
+  });
+
+  return user ? mapUser(user) : null;
+}
+
+export async function findUserByName(name: string, excludeUserId?: string) {
+  const user = await prisma.user.findFirst({
+    where: {
+      name: { equals: name, mode: "insensitive" },
+      ...(excludeUserId
+        ? {
+            NOT: {
+              id: BigInt(excludeUserId),
+            },
+          }
+        : {}),
+    },
   });
 
   return user ? mapUser(user) : null;
