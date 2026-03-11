@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback } from "react";
-import { useEffect, useState } from "react";
-import { X, ArrowLeft } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
 import Image from "next/image";
 import { signIn } from "next-auth/react";
+import { useCallback, useEffect, useState } from "react";
+import { cn } from "@/lib/utils";
+import { useNicknameAvailability } from "./useNicknameAvailability";
 
 type Props = {
   open: boolean;
@@ -27,12 +28,24 @@ export default function LoginModal({ open, onClose }: Props) {
   const [signupName, setSignupName] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [signupPasswordConfirm, setSignupPasswordConfirm] = useState("");
+  const signupNickname = useNicknameAvailability({
+    nickname: signupName,
+    enabled: open && step === "signup",
+  });
+  const isSignupNicknameUnavailable =
+    signupNickname.status === "taken" ||
+    signupNickname.status === "invalid" ||
+    signupNickname.status === "error";
 
   const handleClose = useCallback(() => {
     onClose();
     setStep("login");
     setEmail("");
     setPassword("");
+    setSignupEmail("");
+    setSignupName("");
+    setSignupPassword("");
+    setSignupPasswordConfirm("");
     setError(null);
   }, [onClose]);
 
@@ -80,13 +93,6 @@ export default function LoginModal({ open, onClose }: Props) {
   if (!open) return null;
 
   async function handleSignup() {
-    console.log({
-      signupEmail,
-      signupName,
-      signupPassword,
-      signupPasswordConfirm,
-    });
-
     if (
       !signupEmail ||
       !signupName ||
@@ -99,6 +105,11 @@ export default function LoginModal({ open, onClose }: Props) {
 
     if (signupPassword !== signupPasswordConfirm) {
       setError("비밀번호가 일치하지 않습니다.");
+      return;
+    }
+
+    if (!signupNickname.isAvailable) {
+      setError(signupNickname.message ?? "사용 가능한 닉네임을 입력해주세요.");
       return;
     }
 
@@ -215,7 +226,6 @@ export default function LoginModal({ open, onClose }: Props) {
 
                 <button
                   type="submit"
-                  onClick={handleCredentialsLogin}
                   disabled={loading}
                   className="w-full rounded-md bg-primary py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
                 >
@@ -270,7 +280,7 @@ export default function LoginModal({ open, onClose }: Props) {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                handleCredentialsLogin();
+                handleSignup();
               }}
               className="space-y-3"
             >
@@ -284,8 +294,33 @@ export default function LoginModal({ open, onClose }: Props) {
                 value={signupName}
                 onChange={(e) => setSignupName(e.target.value)}
                 placeholder="닉네임"
-                className="w-full rounded-md border px-3 py-2 text-sm"
+                className={cn(
+                  "w-full rounded-md border px-3 py-2 text-sm outline-none",
+                  signupNickname.status === "taken" ||
+                    signupNickname.status === "invalid" ||
+                    signupNickname.status === "error"
+                    ? "border-red-500 focus-visible:border-red-500"
+                    : "",
+                  signupNickname.status === "available"
+                    ? "border-green-500 focus-visible:border-green-500"
+                    : "",
+                )}
               />
+              {signupNickname.message && (
+                <p
+                  className={cn(
+                    "text-xs",
+                    signupNickname.status === "available"
+                      ? "text-green-600"
+                      : "",
+                    isSignupNicknameUnavailable
+                      ? "text-red-500"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {signupNickname.message}
+                </p>
+              )}
               <input
                 type="password"
                 value={signupPassword}
@@ -305,8 +340,7 @@ export default function LoginModal({ open, onClose }: Props) {
 
               <button
                 type="submit"
-                onClick={handleSignup}
-                disabled={loading}
+                disabled={loading || signupNickname.isChecking}
                 className="mt-4 w-full rounded-md bg-green-500 py-2 text-sm font-semibold text-white disabled:opacity-50"
               >
                 {loading ? "가입 중..." : "회원가입"}

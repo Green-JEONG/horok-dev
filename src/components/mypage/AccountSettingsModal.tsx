@@ -3,6 +3,8 @@
 import { X } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useEffect, useMemo, useState } from "react";
+import { useNicknameAvailability } from "@/components/auth/useNicknameAvailability";
+import { cn } from "@/lib/utils";
 
 type Props = {
   open: boolean;
@@ -23,6 +25,16 @@ export default function AccountSettingsModal({ open, onClose }: Props) {
   const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const nickname = useNicknameAvailability({
+    nickname: name,
+    excludeUserId: session?.user?.id,
+    initialNickname: initialName,
+    enabled: open,
+  });
+  const isNicknameUnavailable =
+    nickname.status === "taken" ||
+    nickname.status === "invalid" ||
+    nickname.status === "error";
 
   // 모달 열릴 때 값 초기화
   useEffect(() => {
@@ -49,6 +61,11 @@ export default function AccountSettingsModal({ open, onClose }: Props) {
 
     if (!session?.user?.id) {
       setMessage("세션 정보를 찾지 못했습니다. 다시 로그인 해주세요.");
+      return;
+    }
+
+    if (!nickname.isAvailable) {
+      setMessage(nickname.message ?? "사용 가능한 닉네임을 입력해주세요.");
       return;
     }
 
@@ -134,8 +151,31 @@ export default function AccountSettingsModal({ open, onClose }: Props) {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="닉네임"
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                className={cn(
+                  "w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none",
+                  nickname.status === "taken" ||
+                    nickname.status === "invalid" ||
+                    nickname.status === "error"
+                    ? "border-red-500 focus-visible:border-red-500"
+                    : "",
+                  nickname.status === "available"
+                    ? "border-green-500 focus-visible:border-green-500"
+                    : "",
+                )}
               />
+              {nickname.message && (
+                <p
+                  className={cn(
+                    "text-xs",
+                    nickname.status === "available" ? "text-green-600" : "",
+                    isNicknameUnavailable
+                      ? "text-red-500"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {nickname.message}
+                </p>
+              )}
             </div>
 
             <div className="space-y-3">
@@ -197,7 +237,7 @@ export default function AccountSettingsModal({ open, onClose }: Props) {
             <button
               type="button"
               onClick={handleSave}
-              disabled={loading}
+              disabled={loading || nickname.isChecking}
               className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
             >
               {loading ? "저장 중..." : "저장"}

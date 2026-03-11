@@ -1,6 +1,8 @@
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
+import { findUserByName } from "@/lib/db";
+import { normalizeNickname, validateNickname } from "@/lib/nickname";
 import { prisma } from "@/lib/prisma";
 
 export async function PATCH(req: Request) {
@@ -14,7 +16,9 @@ export async function PATCH(req: Request) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const name = typeof body?.name === "string" ? body.name.trim() : "";
+    const name = normalizeNickname(
+      typeof body?.name === "string" ? body.name : "",
+    );
     const currentPassword =
       typeof body?.currentPassword === "string" ? body.currentPassword : null;
     const newPassword =
@@ -26,6 +30,24 @@ export async function PATCH(req: Request) {
         { message: "수정할 값이 없습니다." },
         { status: 400 },
       );
+    }
+
+    if (name) {
+      const nicknameValidationMessage = validateNickname(name);
+      if (nicknameValidationMessage) {
+        return NextResponse.json(
+          { message: nicknameValidationMessage },
+          { status: 400 },
+        );
+      }
+
+      const duplicateNameUser = await findUserByName(name, session.user.id);
+      if (duplicateNameUser) {
+        return NextResponse.json(
+          { message: "이미 사용 중인 닉네임입니다." },
+          { status: 409 },
+        );
+      }
     }
 
     const user = await prisma.user.findUnique({
