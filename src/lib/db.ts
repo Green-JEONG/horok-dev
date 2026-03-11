@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export type DbUser = {
@@ -8,7 +8,7 @@ export type DbUser = {
   name: string | null;
   role: "USER" | "ADMIN";
   provider: "credentials" | "github" | "google";
-  github_id: string | null;
+  sns_id: string | null;
 };
 
 export type DbPost = {
@@ -40,7 +40,7 @@ function mapUser(user: {
   name: string | null;
   role: "USER" | "ADMIN";
   provider: "credentials" | "github" | "google";
-  githubId: string | null;
+  snsId: string | null;
 }): DbUser {
   return {
     id: user.id.toString(),
@@ -49,7 +49,7 @@ function mapUser(user: {
     name: user.name,
     role: user.role,
     provider: user.provider,
-    github_id: user.githubId,
+    sns_id: user.snsId,
   };
 }
 
@@ -81,6 +81,23 @@ function mapPost(post: {
 export async function findUserByEmail(email: string) {
   const user = await prisma.user.findUnique({
     where: { email },
+  });
+
+  return user ? mapUser(user) : null;
+}
+
+export async function findUserByName(name: string, excludeUserId?: string) {
+  const user = await prisma.user.findFirst({
+    where: {
+      name: { equals: name, mode: "insensitive" },
+      ...(excludeUserId
+        ? {
+            NOT: {
+              id: BigInt(excludeUserId),
+            },
+          }
+        : {}),
+    },
   });
 
   return user ? mapUser(user) : null;
@@ -136,14 +153,14 @@ export async function upsertOAuthUser(params: {
     update: {
       name: name ?? undefined,
       provider,
-      githubId: providerId,
+      snsId: providerId,
     },
     create: {
       email,
       name,
       role,
       provider,
-      githubId: providerId,
+      snsId: providerId,
     },
   });
 

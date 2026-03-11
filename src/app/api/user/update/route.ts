@@ -1,6 +1,9 @@
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
+import { findUserByName } from "@/lib/db";
+import { normalizeNickname, validateNickname } from "@/lib/nickname";
+import { validatePassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 
 export async function PATCH(req: Request) {
@@ -14,7 +17,9 @@ export async function PATCH(req: Request) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const name = typeof body?.name === "string" ? body.name.trim() : "";
+    const name = normalizeNickname(
+      typeof body?.name === "string" ? body.name : "",
+    );
     const currentPassword =
       typeof body?.currentPassword === "string" ? body.currentPassword : null;
     const newPassword =
@@ -26,6 +31,24 @@ export async function PATCH(req: Request) {
         { message: "수정할 값이 없습니다." },
         { status: 400 },
       );
+    }
+
+    if (name) {
+      const nicknameValidationMessage = validateNickname(name);
+      if (nicknameValidationMessage) {
+        return NextResponse.json(
+          { message: nicknameValidationMessage },
+          { status: 400 },
+        );
+      }
+
+      const duplicateNameUser = await findUserByName(name, session.user.id);
+      if (duplicateNameUser) {
+        return NextResponse.json(
+          { message: "이미 사용 중인 닉네임입니다." },
+          { status: 409 },
+        );
+      }
     }
 
     const user = await prisma.user.findUnique({
@@ -48,6 +71,14 @@ export async function PATCH(req: Request) {
     let passwordToSave: string | null = null;
 
     if (newPassword) {
+      const passwordValidationMessage = validatePassword(newPassword);
+      if (passwordValidationMessage) {
+        return NextResponse.json(
+          { message: passwordValidationMessage },
+          { status: 400 },
+        );
+      }
+
       // credentials 사용자만 비번 변경 가능 (oauth는 원칙적으로 불가)
       if (user.provider !== "credentials") {
         return NextResponse.json(
@@ -72,6 +103,13 @@ export async function PATCH(req: Request) {
       if (!ok) {
         return NextResponse.json(
           { message: "현재 비밀번호가 올바르지 않습니다." },
+          { status: 400 },
+        );
+      }
+
+      if (currentPassword === newPassword) {
+        return NextResponse.json(
+          { message: "현재 비밀번호와 다른 비밀번호를 입력해 주세요." },
           { status: 400 },
         );
       }

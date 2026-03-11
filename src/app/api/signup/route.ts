@@ -1,16 +1,37 @@
-import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { findUserByEmail, createUser } from "@/lib/db";
+import { NextResponse } from "next/server";
+import { createUser, findUserByEmail, findUserByName } from "@/lib/db";
+import { normalizeNickname, validateNickname } from "@/lib/nickname";
+import { validatePassword } from "@/lib/password";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    console.log("SIGNUP BODY:", body);
-    const { email, name, password } = body;
+    const email = typeof body?.email === "string" ? body.email.trim() : "";
+    const name = normalizeNickname(
+      typeof body?.name === "string" ? body.name : "",
+    );
+    const password = typeof body?.password === "string" ? body.password : "";
 
     if (!email || !name || !password) {
       return NextResponse.json(
         { message: "필수 값이 누락되었습니다." },
+        { status: 400 },
+      );
+    }
+
+    const nicknameValidationMessage = validateNickname(name);
+    if (nicknameValidationMessage) {
+      return NextResponse.json(
+        { message: nicknameValidationMessage },
+        { status: 400 },
+      );
+    }
+
+    const passwordValidationMessage = validatePassword(password);
+    if (passwordValidationMessage) {
+      return NextResponse.json(
+        { message: passwordValidationMessage },
         { status: 400 },
       );
     }
@@ -20,6 +41,14 @@ export async function POST(req: Request) {
     if (exists) {
       return NextResponse.json(
         { message: "이미 사용 중인 이메일입니다." },
+        { status: 409 },
+      );
+    }
+
+    const duplicateNameUser = await findUserByName(name);
+    if (duplicateNameUser) {
+      return NextResponse.json(
+        { message: "이미 사용 중인 닉네임입니다." },
         { status: 409 },
       );
     }
