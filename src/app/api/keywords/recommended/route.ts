@@ -1,24 +1,23 @@
 import { NextResponse } from "next/server";
-import mysql from "mysql2/promise";
-import { pool } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 
 export async function GET() {
-  // 1. StopWord 조회
-  const [stopRows] = await pool.query<mysql.RowDataPacket[]>(
-    `SELECT word FROM stop_words`,
-  );
-  const stopWords = new Set(stopRows.map((r) => r.word));
+  const [stopRows, postRows] = await Promise.all([
+    prisma.stopWord.findMany({
+      select: { word: true },
+    }),
+    prisma.post.findMany({
+      where: {
+        createdAt: {
+          gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        },
+        isDeleted: false,
+      },
+      select: { title: true, content: true },
+    }),
+  ]);
 
-  // 2. 최근 30일 게시글 텍스트 조회
-  const [postRows] = await pool.query<mysql.RowDataPacket[]>(
-    `
-    SELECT title, content
-    FROM posts
-    WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-    `,
-  );
-
-  // 3. 단어 빈도 계산
+  const stopWords = new Set(stopRows.map((row) => row.word.toLowerCase()));
   const counter = new Map<string, number>();
 
   for (const post of postRows) {
@@ -34,7 +33,6 @@ export async function GET() {
     }
   }
 
-  // 4. 상위 10개 추출
   const keywords = Array.from(counter.entries())
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)

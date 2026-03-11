@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
-import { findUserContributions } from "@/lib/db";
-import { pool } from "@/lib/db";
-import type { RowDataPacket } from "mysql2/promise";
+import { findUserContributions, getUserIdByEmail } from "@/lib/db";
 
 export async function GET() {
   try {
@@ -13,16 +11,10 @@ export async function GET() {
     }
 
     // email → users.id(BIGINT) 변환
-    const [rows] = await pool.query<RowDataPacket[]>(
-      `SELECT id FROM users WHERE email = ? LIMIT 1`,
-      [session.user.email],
-    );
-
-    if (rows.length === 0) {
+    const userId = await getUserIdByEmail(session.user.email);
+    if (!userId) {
       return NextResponse.json([], { status: 200 });
     }
-
-    const userId = rows[0].id as number;
 
     const data = await findUserContributions(userId);
 

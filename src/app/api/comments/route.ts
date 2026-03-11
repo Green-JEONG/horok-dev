@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { createComment, getCommentById } from "@/lib/comments";
 import { getPostById } from "@/lib/posts";
-import { pool } from "@/lib/db";
 import { requireDbUserId } from "@/lib/auth-db";
+import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
   try {
@@ -30,21 +30,16 @@ export async function POST(req: Request) {
         const parentComment = await getCommentById(Number(parentId));
 
         if (parentComment && parentComment.user_id !== userId) {
-          await pool.query(
-            `
-            INSERT INTO notifications
-              (user_id, actor_id, type, message, post_id, comment_id)
-            VALUES
-              (?, ?, 'COMMENT_REPLY', ?, ?, ?)
-            `,
-            [
-              parentComment.user_id, // number
-              userId, // number
-              "내 댓글에 답글이 달렸어요",
-              Number(postId),
-              commentId,
-            ],
-          );
+          await prisma.notification.create({
+            data: {
+              userId: BigInt(parentComment.user_id),
+              actorId: BigInt(userId),
+              type: "COMMENT_REPLY",
+              content: "내 댓글에 답글이 달렸어요",
+              postId: BigInt(Number(postId)),
+              commentId: BigInt(commentId),
+            },
+          });
         }
       } else {
         // 새 댓글 → 게시글 작성자에게
@@ -52,21 +47,16 @@ export async function POST(req: Request) {
 
         // post.user_id도 number여야 함
         if (post && post.user_id !== userId) {
-          await pool.query(
-            `
-            INSERT INTO notifications
-              (user_id, actor_id, type, message, post_id, comment_id)
-            VALUES
-              (?, ?, 'NEW_COMMENT', ?, ?, ?)
-            `,
-            [
-              post.user_id, // number
-              userId, // number
-              "내 게시물에 새로운 댓글이 달렸어요",
-              Number(postId),
-              commentId,
-            ],
-          );
+          await prisma.notification.create({
+            data: {
+              userId: BigInt(post.user_id),
+              actorId: BigInt(userId),
+              type: "NEW_COMMENT",
+              content: "내 게시물에 새로운 댓글이 달렸어요",
+              postId: BigInt(Number(postId)),
+              commentId: BigInt(commentId),
+            },
+          });
         }
       }
     } catch (e) {

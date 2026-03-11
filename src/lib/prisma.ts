@@ -1,10 +1,5 @@
-import { PrismaMariaDb } from "@prisma/adapter-mariadb";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
-
-const globalForPrisma = globalThis as typeof globalThis & {
-  prismaAdapter?: PrismaMariaDb;
-  prisma?: PrismaClient;
-};
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -12,8 +7,13 @@ if (!connectionString) {
   throw new Error("Missing DATABASE_URL");
 }
 
+const globalForPrisma = globalThis as typeof globalThis & {
+  prisma?: PrismaClient;
+  prismaAdapter?: PrismaPg;
+};
+
 const adapter =
-  globalForPrisma.prismaAdapter ?? new PrismaMariaDb(connectionString);
+  globalForPrisma.prismaAdapter ?? new PrismaPg({ connectionString });
 
 export const prisma =
   globalForPrisma.prisma ??

@@ -1,26 +1,28 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
+import { getUserIdByEmail } from "@/lib/db";
 import { createPost } from "@/lib/posts";
-import { pool } from "@/lib/db";
-import type { RowDataPacket } from "mysql2/promise";
+import { prisma } from "@/lib/prisma";
 
 export async function GET() {
-  const [rows] = await pool.query<RowDataPacket[]>(
-    `
-    SELECT
-      p.id,
-      p.title,
-      p.created_at,
-      c.name AS category,
-      u.email AS author
-    FROM posts p
-    JOIN categories c ON p.category_id = c.id
-    JOIN users u ON p.user_id = u.id
-    ORDER BY p.created_at DESC
-    `,
-  );
+  const rows = await prisma.post.findMany({
+    where: { isDeleted: false },
+    orderBy: { createdAt: "desc" },
+    include: {
+      category: { select: { name: true } },
+      user: { select: { email: true } },
+    },
+  });
 
-  return NextResponse.json(rows);
+  return NextResponse.json(
+    rows.map((post) => ({
+      id: Number(post.id),
+      title: post.title,
+      created_at: post.createdAt.toISOString(),
+      category: post.category.name,
+      author: post.user.email,
+    })),
+  );
 }
 
 export async function POST(req: Request) {
@@ -30,16 +32,10 @@ export async function POST(req: Request) {
   }
 
   // DB용 userId 조회 (핵심)
-  const [users] = await pool.query<RowDataPacket[]>(
-    `SELECT id FROM users WHERE email = ? LIMIT 1`,
-    [session.user.email],
-  );
-
-  if (users.length === 0) {
+  const userId = await getUserIdByEmail(session.user.email);
+  if (!userId) {
     return NextResponse.json({ message: "User not found" }, { status: 404 });
   }
-
-  const userId = users[0].id as number;
 
   const body = await req.json();
   const { categoryId, title, content } = body;

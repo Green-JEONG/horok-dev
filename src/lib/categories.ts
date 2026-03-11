@@ -1,18 +1,18 @@
-import type mysql from "mysql2/promise";
-import { pool } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 
 export async function getCategoryBySlug(slug: string) {
-  const [rows] = await pool.query<mysql.RowDataPacket[]>(
-    `
-    SELECT id, name, slug
-    FROM categories
-    WHERE slug = ?
-    LIMIT 1
-    `,
-    [slug],
-  );
+  const category = await prisma.category.findUnique({
+    where: { slug },
+    select: { id: true, name: true, slug: true },
+  });
 
-  return rows[0] ?? null;
+  return category
+    ? {
+        id: Number(category.id),
+        name: category.name,
+        slug: category.slug,
+      }
+    : null;
 }
 
 export async function getPostsByCategory(params: {
@@ -22,37 +22,37 @@ export async function getPostsByCategory(params: {
 }) {
   const { categoryId, page, limit } = params;
   const offset = (page - 1) * limit;
+  const where = {
+    categoryId: BigInt(categoryId),
+    isDeleted: false,
+  };
 
-  const [posts] = await pool.query<mysql.RowDataPacket[]>(
-    `
-    SELECT
-      p.id,
-      p.title,
-      p.created_at,
-      u.email AS author,
-      COUNT(pl.user_id) AS likeCount
-    FROM posts p
-    JOIN users u ON p.user_id = u.id
-    LEFT JOIN post_likes pl ON p.id = pl.post_id
-    WHERE p.category_id = ?
-    GROUP BY p.id
-    ORDER BY p.created_at DESC
-    LIMIT ? OFFSET ?
-    `,
-    [categoryId, limit, offset],
-  );
-
-  const [countRows] = await pool.query<mysql.RowDataPacket[]>(
-    `
-    SELECT COUNT(*) AS total
-    FROM posts
-    WHERE category_id = ?
-    `,
-    [categoryId],
-  );
+  const [posts, total] = await Promise.all([
+    prisma.post.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: offset,
+      take: limit,
+      include: {
+        user: {
+          select: { email: true },
+        },
+        _count: {
+          select: { likes: true },
+        },
+      },
+    }),
+    prisma.post.count({ where }),
+  ]);
 
   return {
-    posts,
-    total: Number(countRows[0]?.total ?? 0),
+    posts: posts.map((post) => ({
+      id: Number(post.id),
+      title: post.title,
+      created_at: post.createdAt.toISOString(),
+      author: post.user.email,
+      likeCount: post._count.likes,
+    })),
+    total,
   };
 }
