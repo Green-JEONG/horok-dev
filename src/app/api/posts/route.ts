@@ -10,7 +10,7 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
     include: {
       category: { select: { name: true } },
-      user: { select: { email: true } },
+      user: { select: { email: true, name: true } },
     },
   });
 
@@ -20,7 +20,7 @@ export async function GET() {
       title: post.title,
       created_at: post.createdAt.toISOString(),
       category: post.category.name,
-      author: post.user.email,
+      author: post.user.name ?? post.user.email,
     })),
   );
 }
@@ -38,15 +38,15 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json();
-  const { categoryId, title, content } = body;
+  const { categoryName, title, content } = body;
 
-  if (!categoryId || !title || !content) {
+  if (!categoryName || !title || !content) {
     return NextResponse.json({ message: "Invalid input" }, { status: 400 });
   }
 
   const post = await createPost({
     userId,
-    categoryId,
+    categoryName,
     title,
     content,
   });

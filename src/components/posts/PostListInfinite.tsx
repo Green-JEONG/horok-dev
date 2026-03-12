@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import PostCard from "./PostCard";
 import type { DbPost } from "@/lib/db";
+import PostCard from "./PostCard";
 
 const PAGE_SIZE = 12;
 
@@ -57,7 +57,7 @@ export default function PostListInfinite({
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-3">
         {posts.map((post) => (
           <PostCard
             key={post.id}

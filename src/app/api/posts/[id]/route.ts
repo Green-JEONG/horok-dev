@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { getDbUserIdFromSession } from "@/lib/auth-db";
-import { getPostById, updatePost, deletePost } from "@/lib/posts";
+import { deletePost, getPostById, updatePost } from "@/lib/posts";
 
 export async function GET(
   _req: NextRequest,
@@ -49,12 +49,17 @@ export async function PUT(
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
-  const { title, content } = await req.json();
+  const { title, content, categoryName } = await req.json();
+
+  if (!title || !content) {
+    return NextResponse.json({ message: "Invalid input" }, { status: 400 });
+  }
 
   const updated = await updatePost({
     postId,
     title,
     content,
+    categoryName,
   });
 
   return NextResponse.json(updated);

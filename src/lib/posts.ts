@@ -1,3 +1,4 @@
+import { deleteUnusedCategories, ensureCategoryByName } from "@/lib/categories";
 import { prisma } from "@/lib/prisma";
 
 export type PostRow = {
@@ -85,16 +86,17 @@ export async function getPopularPosts(limit = 5): Promise<PopularPostRow[]> {
 
 export async function createPost(params: {
   userId: number;
-  categoryId: number;
+  categoryName: string;
   title: string;
   content: string;
 }) {
-  const { userId, categoryId, title, content } = params;
+  const { userId, categoryName, title, content } = params;
+  const category = await ensureCategoryByName(categoryName);
 
   const post = await prisma.post.create({
     data: {
       userId: BigInt(userId),
-      categoryId: BigInt(categoryId),
+      categoryId: BigInt(category.id),
       title,
       content,
     },
@@ -105,25 +107,47 @@ export async function createPost(params: {
 
 export async function updatePost(params: {
   postId: number;
+  categoryName?: string;
   title: string;
   content: string;
 }) {
-  const { postId, title, content } = params;
+  const { postId, categoryName, title, content } = params;
+  const category = categoryName
+    ? await ensureCategoryByName(categoryName)
+    : null;
 
   const post = await prisma.post.update({
     where: { id: BigInt(postId) },
-    data: { title, content },
+    data: {
+      title,
+      content,
+      ...(category ? { categoryId: BigInt(category.id) } : {}),
+    },
   });
 
   return mapPost(post);
 }
 
 export async function deletePost(postId: number) {
-  await prisma.post.update({
+  const post = await prisma.post.update({
     where: { id: BigInt(postId) },
     data: {
       isDeleted: true,
       deletedAt: new Date(),
     },
+    select: {
+      categoryId: true,
+    },
   });
+
+  const activeCount = await prisma.post.count({
+    where: {
+      categoryId: post.categoryId,
+      isDeleted: false,
+    },
+  });
+
+  if (activeCount === 0) {
+    await deleteUnusedCategories();
+  }
 }

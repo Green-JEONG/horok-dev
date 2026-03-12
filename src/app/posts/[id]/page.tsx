@@ -1,3 +1,4 @@
+import { auth } from "@/app/api/auth/[...nextauth]/route";
 import CommentForm from "@/components/posts/CommentForm";
 import CommentList from "@/components/posts/CommentList";
 import PostActions from "@/components/posts/PostActions";
@@ -5,7 +6,7 @@ import PostContent from "@/components/posts/PostContent";
 import PostFooter from "@/components/posts/PostFooter";
 import PostHeader from "@/components/posts/PostHeader";
 import PostViewTracker from "@/components/posts/PostViewTracker";
-import { getPostById } from "@/lib/posts";
+import { findPostById } from "@/lib/db";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -19,22 +20,33 @@ export default async function PostPage({ params }: Props) {
     return <p>잘못된 접근입니다.</p>;
   }
 
-  const post = await getPostById(postId);
+  const post = await findPostById(postId);
   if (!post) {
     return <p>게시글이 없습니다.</p>;
   }
 
+  const session = await auth();
+  const isOwner =
+    typeof session?.user?.id === "string" &&
+    Number(session.user.id) === post.user_id;
+
   return (
     <article className="mx-auto max-w-3xl px-4 py-10">
       <PostViewTracker postId={postId} />
-      <PostHeader />
-      <PostActions />
-      <PostContent />
+      <PostHeader post={post} />
+      <PostActions
+        postId={postId}
+        initialTitle={post.title}
+        initialContent={post.content}
+        initialCategoryName={post.category_name}
+        isOwner={isOwner}
+      />
+      <PostContent post={post} />
       <PostFooter postId={postId} />
 
       {/* 댓글 */}
-      <CommentList />
-      <CommentForm />
+      <CommentList postId={postId} />
+      <CommentForm postId={postId} />
     </article>
   );
 }

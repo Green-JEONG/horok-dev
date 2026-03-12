@@ -3,6 +3,13 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   const rows = await prisma.category.findMany({
+    where: {
+      posts: {
+        some: {
+          isDeleted: false,
+        },
+      },
+    },
     include: {
       _count: {
         select: {
@@ -21,6 +28,7 @@ export async function GET() {
         name: category.name,
         postCount: category._count.posts,
       }))
+      .filter((category) => category.postCount > 0)
       .sort((a, b) => b.postCount - a.postCount)
       .slice(0, 10),
   );
