@@ -1,18 +1,83 @@
 import { prisma } from "@/lib/prisma";
 
+function normalizeCategoryName(name: string) {
+  return name.replace(/\s+/g, " ").trim();
+}
+
+function slugifyCategoryName(name: string) {
+  return normalizeCategoryName(name)
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s-]/gu, "")
+    .replace(/\s+/g, "-");
+}
+
 export async function getCategoryBySlug(slug: string) {
   const category = await prisma.category.findUnique({
     where: { slug },
-    select: { id: true, name: true, slug: true },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      _count: {
+        select: {
+          posts: {
+            where: {
+              isDeleted: false,
+            },
+          },
+        },
+      },
+    },
   });
 
-  return category
+  return category && category._count.posts > 0
     ? {
         id: Number(category.id),
         name: category.name,
         slug: category.slug,
       }
     : null;
+}
+
+export async function ensureCategoryByName(name: string) {
+  const normalizedName = normalizeCategoryName(name);
+  const slug = slugifyCategoryName(normalizedName);
+
+  if (!normalizedName || !slug) {
+    throw new Error("Invalid category name");
+  }
+
+  const category = await prisma.category.upsert({
+    where: { slug },
+    update: {
+      name: normalizedName,
+    },
+    create: {
+      name: normalizedName,
+      slug,
+    },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+    },
+  });
+
+  return {
+    id: Number(category.id),
+    name: category.name,
+    slug: category.slug,
+  };
+}
+
+export async function deleteUnusedCategories() {
+  return prisma.category.deleteMany({
+    where: {
+      posts: {
+        none: {},
+      },
+    },
+  });
 }
 
 export async function getPostsByCategory(params: {

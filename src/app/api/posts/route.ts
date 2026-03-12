@@ -38,15 +38,15 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json();
-  const { categoryId, title, content } = body;
+  const { categoryName, title, content } = body;
 
-  if (!categoryId || !title || !content) {
+  if (!categoryName || !title || !content) {
     return NextResponse.json({ message: "Invalid input" }, { status: 400 });
   }
 
   const post = await createPost({
     userId,
-    categoryId,
+    categoryName,
     title,
     content,
   });

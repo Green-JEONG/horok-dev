@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
+import { createPost, deletePost, updatePost } from "@/lib/posts";
 import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
@@ -8,7 +9,6 @@ export const metadata: Metadata = {
   description: "관리자 페이지",
 };
 
-type Category = { id: number; name: string };
 type UserRow = {
   id: string;
   name: string | null;
@@ -57,11 +57,7 @@ export default async function AdminPage() {
   if (!session) redirect("/");
   if (role !== "ADMIN") redirect("/");
 
-  const [catRows, userRows, postRows, commentRows] = await Promise.all([
-    prisma.category.findMany({
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
+  const [userRows, postRows, commentRows] = await Promise.all([
     prisma.user.findMany({
       orderBy: { createdAt: "desc" },
       take: LIMIT_USERS,
@@ -91,11 +87,6 @@ export default async function AdminPage() {
       },
     }),
   ]);
-
-  const categories: Category[] = catRows.map((r) => ({
-    id: Number(r.id),
-    name: r.name,
-  }));
 
   const users: UserRow[] = userRows.map((r) => ({
     id: r.id.toString(),
@@ -134,13 +125,14 @@ export default async function AdminPage() {
   async function createPostAction(formData: FormData) {
     "use server";
     const session = await auth();
-    if (!session || session.user.role !== "ADMIN" || !session.user.email) return;
+    if (!session || session.user.role !== "ADMIN" || !session.user.email)
+      return;
 
     const title = String(formData.get("title") ?? "").trim();
     const content = String(formData.get("content") ?? "").trim();
-    const categoryId = Number(formData.get("categoryId") ?? 0);
+    const categoryName = String(formData.get("categoryName") ?? "").trim();
 
-    if (!title || !content || Number.isNaN(categoryId) || categoryId <= 0) return;
+    if (!title || !content || !categoryName) return;
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
@@ -148,13 +140,11 @@ export default async function AdminPage() {
     });
     if (!user) return;
 
-    await prisma.post.create({
-      data: {
-        userId: user.id,
-        categoryId: BigInt(categoryId),
-        title,
-        content,
-      },
+    await createPost({
+      userId: Number(user.id),
+      categoryName,
+      title,
+      content,
     });
   }
 
@@ -166,18 +156,16 @@ export default async function AdminPage() {
     const postId = Number(formData.get("postId") ?? 0);
     const title = String(formData.get("title") ?? "").trim();
     const content = String(formData.get("content") ?? "").trim();
-    const categoryId = Number(formData.get("categoryId") ?? 0);
+    const categoryName = String(formData.get("categoryName") ?? "").trim();
 
     if (Number.isNaN(postId) || postId <= 0) return;
-    if (!title || !content || Number.isNaN(categoryId) || categoryId <= 0) return;
+    if (!title || !content || !categoryName) return;
 
-    await prisma.post.update({
-      where: { id: BigInt(postId) },
-      data: {
-        title,
-        content,
-        categoryId: BigInt(categoryId),
-      },
+    await updatePost({
+      postId,
+      title,
+      content,
+      categoryName,
     });
   }
 
@@ -189,13 +177,7 @@ export default async function AdminPage() {
     const postId = Number(formData.get("postId") ?? 0);
     if (Number.isNaN(postId) || postId <= 0) return;
 
-    await prisma.post.update({
-      where: { id: BigInt(postId) },
-      data: {
-        isDeleted: true,
-        deletedAt: new Date(),
-      },
-    });
+    await deletePost(postId);
   }
 
   async function deleteCommentAction(formData: FormData) {
@@ -265,22 +247,12 @@ export default async function AdminPage() {
               className="md:col-span-2 w-full rounded-md border px-3 py-2 text-sm"
               required
             />
-            <select
-              name="categoryId"
+            <input
+              name="categoryName"
+              placeholder="카테고리 이름"
               className="w-full rounded-md border px-3 py-2 text-sm"
               required
-              defaultValue={categories[0]?.id ?? 0}
-            >
-              {categories.length === 0 ? (
-                <option value={0}>카테고리 없음</option>
-              ) : (
-                categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))
-              )}
-            </select>
+            />
           </div>
 
           <textarea
@@ -352,18 +324,12 @@ export default async function AdminPage() {
                       className="md:col-span-2 w-full rounded-md border px-3 py-2 text-sm"
                       required
                     />
-                    <select
-                      name="categoryId"
+                    <input
+                      name="categoryName"
                       className="w-full rounded-md border px-3 py-2 text-sm"
-                      defaultValue={p.category_id}
+                      defaultValue={p.category_name ?? ""}
                       required
-                    >
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
+                    />
                   </div>
 
                   <textarea
@@ -471,7 +437,9 @@ export default async function AdminPage() {
               {users.map((u) => (
                 <tr key={u.id} className="border-b align-top">
                   <td className="whitespace-nowrap py-2 pr-4">{u.id}</td>
-                  <td className="whitespace-nowrap py-2 pr-4">{u.name ?? "-"}</td>
+                  <td className="whitespace-nowrap py-2 pr-4">
+                    {u.name ?? "-"}
+                  </td>
                   <td className="py-2 pr-4">{u.email}</td>
                   <td className="whitespace-nowrap py-2 pr-4">
                     {u.provider ?? "-"}
@@ -498,7 +466,9 @@ export default async function AdminPage() {
                       </button>
                     </form>
                   </td>
-                  <td className="whitespace-nowrap py-2 pr-4">{u.created_at}</td>
+                  <td className="whitespace-nowrap py-2 pr-4">
+                    {u.created_at}
+                  </td>
                   <td className="py-2 pr-0">
                     <form action={deleteUserAction}>
                       <input type="hidden" name="userId" value={u.id} />
