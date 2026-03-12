@@ -10,7 +10,7 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
     include: {
       category: { select: { name: true } },
-      user: { select: { email: true } },
+      user: { select: { email: true, name: true } },
     },
   });
 
@@ -20,7 +20,7 @@ export async function GET() {
       title: post.title,
       created_at: post.createdAt.toISOString(),
       category: post.category.name,
-      author: post.user.email,
+      author: post.user.name ?? post.user.email,
     })),
   );
 }

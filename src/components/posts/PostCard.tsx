@@ -27,7 +27,7 @@ export default function PostCard({
   return (
     <Link
       href={`/posts/${id}`}
-      className="group overflow-hidden rounded-xl border bg-background shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+      className="group flex h-full min-w-0 flex-col overflow-hidden rounded-xl border bg-background shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
     >
       <div className="flex h-28 items-center justify-center bg-zinc-900">
         <Image
@@ -38,8 +38,8 @@ export default function PostCard({
         />
       </div>
 
-      <div className="p-3">
-        <p className="mb-1 text-xs text-muted-foreground">
+      <div className="flex min-w-0 flex-1 flex-col p-3">
+        <p className="mb-1 truncate text-xs text-muted-foreground">
           {category} · {author}
         </p>
 
@@ -49,12 +49,14 @@ export default function PostCard({
           {description}
         </p>
 
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <div className="flex items-center gap-3">
+        <div className="mt-auto flex items-center justify-between gap-2 text-xs text-muted-foreground">
+          <div className="flex min-w-0 items-center gap-1">
             <span>❤️ {likes}</span>
             <span>💬 {comments}</span>
           </div>
-          <span>{new Date(createdAt).toLocaleDateString("ko-KR")}</span>
+          <span className="shrink-0 whitespace-nowrap">
+            {new Date(createdAt).toLocaleDateString("ko-KR")}
+          </span>
         </div>
       </div>
     </Link>

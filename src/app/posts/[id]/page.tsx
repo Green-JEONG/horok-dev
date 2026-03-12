@@ -1,3 +1,4 @@
+import { auth } from "@/app/api/auth/[...nextauth]/route";
 import CommentForm from "@/components/posts/CommentForm";
 import CommentList from "@/components/posts/CommentList";
 import PostActions from "@/components/posts/PostActions";
@@ -24,17 +25,28 @@ export default async function PostPage({ params }: Props) {
     return <p>게시글이 없습니다.</p>;
   }
 
+  const session = await auth();
+  const isOwner =
+    typeof session?.user?.id === "string" &&
+    Number(session.user.id) === post.user_id;
+
   return (
     <article className="mx-auto max-w-3xl px-4 py-10">
       <PostViewTracker postId={postId} />
       <PostHeader post={post} />
-      <PostActions />
+      <PostActions
+        postId={postId}
+        initialTitle={post.title}
+        initialContent={post.content}
+        initialCategoryName={post.category_name}
+        isOwner={isOwner}
+      />
       <PostContent post={post} />
       <PostFooter postId={postId} />
 
       {/* 댓글 */}
-      <CommentList />
-      <CommentForm />
+      <CommentList postId={postId} />
+      <CommentForm postId={postId} />
     </article>
   );
 }

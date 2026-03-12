@@ -100,7 +100,7 @@ export async function getPostsByCategory(params: {
       take: limit,
       include: {
         user: {
-          select: { email: true },
+          select: { email: true, name: true },
         },
         _count: {
           select: { likes: true },
@@ -115,7 +115,7 @@ export async function getPostsByCategory(params: {
       id: Number(post.id),
       title: post.title,
       created_at: post.createdAt.toISOString(),
-      author: post.user.email,
+      author: post.user.name ?? post.user.email,
       likeCount: post._count.likes,
     })),
     total,

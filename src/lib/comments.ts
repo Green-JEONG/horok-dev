@@ -39,14 +39,14 @@ export async function getCommentsByPost(postId: number) {
     orderBy: { createdAt: "asc" },
     include: {
       user: {
-        select: { email: true },
+        select: { email: true, name: true },
       },
     },
   });
 
   return comments.map((comment) => ({
     ...mapComment(comment),
-    author: comment.user.email,
+    author: comment.user.name ?? comment.user.email,
   }));
 }
 
