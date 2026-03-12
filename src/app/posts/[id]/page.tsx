@@ -5,7 +5,7 @@ import PostContent from "@/components/posts/PostContent";
 import PostFooter from "@/components/posts/PostFooter";
 import PostHeader from "@/components/posts/PostHeader";
 import PostViewTracker from "@/components/posts/PostViewTracker";
-import { getPostById } from "@/lib/posts";
+import { findPostById } from "@/lib/db";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -19,7 +19,7 @@ export default async function PostPage({ params }: Props) {
     return <p>잘못된 접근입니다.</p>;
   }
 
-  const post = await getPostById(postId);
+  const post = await findPostById(postId);
   if (!post) {
     return <p>게시글이 없습니다.</p>;
   }
@@ -27,9 +27,9 @@ export default async function PostPage({ params }: Props) {
   return (
     <article className="mx-auto max-w-3xl px-4 py-10">
       <PostViewTracker postId={postId} />
-      <PostHeader />
+      <PostHeader post={post} />
       <PostActions />
-      <PostContent />
+      <PostContent post={post} />
       <PostFooter postId={postId} />
 
       {/* 댓글 */}
