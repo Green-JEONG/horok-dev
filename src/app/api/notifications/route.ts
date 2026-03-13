@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 
 function normalizeNotificationType(type: string | null) {
   if (type === "NEW_COMMENT") return "POST_COMMENT";
+  if (type === "NEW_LIKE") return "POST_LIKE";
   return type ?? "UNKNOWN";
 }
 

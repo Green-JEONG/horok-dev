@@ -127,7 +127,7 @@ export default function PostListHeader() {
         ? createPortal(
             <ul
               ref={menuRef}
-              className="fixed z-[100] rounded-md border bg-background text-sm shadow-md"
+              className="fixed z-100 rounded-md border bg-background text-sm shadow-md"
               style={menuStyle}
             >
               {(Object.keys(SORT_LABEL) as SortType[]).map((key) => (

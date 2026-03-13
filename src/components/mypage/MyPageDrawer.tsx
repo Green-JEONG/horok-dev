@@ -15,7 +15,7 @@ type Props = {
 
 type Notification = {
   id: number;
-  type: "FRIEND_REQUEST" | "POST_COMMENT" | "COMMENT_REPLY";
+  type: "FRIEND_REQUEST" | "POST_COMMENT" | "COMMENT_REPLY" | "POST_LIKE";
   actor_name: string | null;
   message?: string | null;
   post_id: number | null;
@@ -23,6 +23,8 @@ type Notification = {
   is_read: number;
   created_at: string;
 };
+
+const NOTIFICATIONS_UPDATED_EVENT = "notifications-updated";
 
 function renderNotificationMessage(n: Notification) {
   if (n.message) return n.message;
@@ -34,6 +36,8 @@ function renderNotificationMessage(n: Notification) {
       return `${n.actor_name ?? "누군가"}님이 내 게시물에 댓글을 남겼습니다`;
     case "COMMENT_REPLY":
       return `${n.actor_name ?? "누군가"}님이 내 댓글에 답글을 남겼습니다`;
+    case "POST_LIKE":
+      return `${n.actor_name ?? "누군가"}님이 내 게시물을 좋아합니다`;
     default:
       return "새 알림이 있습니다";
   }
@@ -49,6 +53,10 @@ export default function MyPageDrawer({ open, onClose }: Props) {
     comments: 0,
     friends: 0,
   });
+
+  const notifyNotificationsUpdated = () => {
+    window.dispatchEvent(new Event(NOTIFICATIONS_UPDATED_EVENT));
+  };
 
   // ESC 닫기
   useEffect(() => {
@@ -222,7 +230,31 @@ export default function MyPageDrawer({ open, onClose }: Props) {
                   <button
                     type="button"
                     className="flex w-full items-center gap-2 text-left hover:underline"
-                    onClick={() => {
+                    onClick={async () => {
+                      if (!n.is_read) {
+                        try {
+                          const response = await fetch(
+                            `/api/notifications/${n.id}/read`,
+                            {
+                              method: "PATCH",
+                            },
+                          );
+
+                          if (response.ok) {
+                            setNotifications((current) =>
+                              current.map((notification) =>
+                                notification.id === n.id
+                                  ? { ...notification, is_read: 1 }
+                                  : notification,
+                              ),
+                            );
+                            notifyNotificationsUpdated();
+                          }
+                        } catch (error) {
+                          console.error("알림 읽음 처리 실패", error);
+                        }
+                      }
+
                       onClose();
                       if (n.post_id) {
                         router.push(`/posts/${n.post_id}`);
