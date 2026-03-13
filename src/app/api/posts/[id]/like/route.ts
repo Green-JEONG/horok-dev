@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { getUserIdByEmail } from "@/lib/db";
 import { toggleLike } from "@/lib/likes";
+import { getPostById } from "@/lib/posts";
+import { prisma } from "@/lib/prisma";
 
 export async function POST(
   _req: Request,
@@ -26,6 +28,26 @@ export async function POST(
   }
 
   const result = await toggleLike({ postId, userId });
+
+  if (result.liked) {
+    try {
+      const post = await getPostById(postId);
+
+      if (post && post.user_id !== userId) {
+        await prisma.notification.create({
+          data: {
+            userId: BigInt(post.user_id),
+            actorId: BigInt(userId),
+            type: "POST_LIKE",
+            content: "내 게시물에 좋아요가 눌렸어요",
+            postId: BigInt(postId),
+          },
+        });
+      }
+    } catch (error) {
+      console.error("🔔 좋아요 알림 생성 실패", error);
+    }
+  }
 
   return NextResponse.json(result);
 }
