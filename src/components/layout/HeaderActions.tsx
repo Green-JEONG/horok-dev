@@ -1,24 +1,76 @@
 "use client";
 
+import Image from "next/image";
 import { useSession } from "next-auth/react";
-import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import LoginModal from "@/components/auth/LoginModal";
 import MyPageDrawer from "@/components/mypage/MyPageDrawer";
-import Image from "next/image";
+import { Button } from "@/components/ui/button";
+
+type NotificationSummary = {
+  id: number;
+  is_read: number;
+};
+
+const NOTIFICATIONS_UPDATED_EVENT = "notifications-updated";
 
 export default function HeaderActions() {
   const { data: session, status } = useSession();
   const [open, setOpen] = useState(false);
-
-  console.log("SESSION:", session);
-  console.log("STATUS:", status);
+  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
 
   const isLoggedIn = status === "authenticated";
   // const isAdmin = session?.user?.role === "ADMIN";
 
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setHasUnreadNotifications(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadNotifications = async () => {
+      try {
+        const response = await fetch("/api/notifications");
+
+        if (!response.ok) {
+          if (!cancelled) {
+            setHasUnreadNotifications(false);
+          }
+          return;
+        }
+
+        const notifications = (await response
+          .json()
+          .catch(() => [])) as NotificationSummary[];
+
+        if (!cancelled) {
+          setHasUnreadNotifications(
+            notifications.some((notification) => notification.is_read === 0),
+          );
+        }
+      } catch {
+        if (!cancelled) {
+          setHasUnreadNotifications(false);
+        }
+      }
+    };
+
+    loadNotifications();
+    window.addEventListener(NOTIFICATIONS_UPDATED_EVENT, loadNotifications);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener(
+        NOTIFICATIONS_UPDATED_EVENT,
+        loadNotifications,
+      );
+    };
+  }, [isLoggedIn]);
+
   if (!isLoggedIn) {
-    return (              
+    return (
       <>
         <Button size="sm" onClick={() => setOpen(true)}>
           로그인
@@ -40,10 +92,20 @@ export default function HeaderActions() {
       <Button
         variant="ghost"
         size="icon"
-        className="shrink-0"
+        className="relative h-10 w-10 shrink-0 overflow-visible rounded-full p-0"
         onClick={() => setOpen(true)}
+        aria-label="마이페이지 열기"
       >
-        <Image src="/alarm.svg" alt="alarm" width={20} height={20} />
+        <Image
+          src={session?.user?.image ?? "/logo.svg"}
+          alt={session?.user?.name ? `${session.user.name} 프로필` : "profile"}
+          width={30}
+          height={30}
+          className="h-full w-full object-contain border rounded-full"
+        />
+        {hasUnreadNotifications ? (
+          <span className="absolute -right-0.5 top-0 h-2.5 w-2.5 rounded-full bg-red-500 ring-background" />
+        ) : null}
       </Button>
 
       <MyPageDrawer open={open} onClose={() => setOpen(false)} />
