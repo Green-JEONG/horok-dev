@@ -22,7 +22,10 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
     include: {
       post: {
-        select: { title: true },
+        select: {
+          title: true,
+          isDeleted: true,
+        },
       },
     },
   });
@@ -31,7 +34,11 @@ export async function GET() {
     rows.map((comment) => ({
       id: Number(comment.id),
       content: comment.content,
-      post_title: comment.post.title,
+      post_id: Number(comment.postId),
+      post_title: comment.post.isDeleted
+        ? "삭제된 게시물입니다"
+        : comment.post.title,
+      is_post_deleted: comment.post.isDeleted,
     })),
   );
 }
