@@ -2,9 +2,10 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import MarkdownRenderer from "@/components/posts/MarkdownRenderer";
 import {
+  createPostContentImagePath,
   createPostThumbnailPath,
   getStorageObjectPathFromPublicUrl,
   POST_THUMBNAIL_BUCKET,
@@ -29,6 +30,7 @@ export default function PostActions({
   isOwner,
 }: Props) {
   const router = useRouter();
+  const contentRef = useRef<HTMLTextAreaElement>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [savedTitle, setSavedTitle] = useState(initialTitle);
   const [savedContent, setSavedContent] = useState(initialContent);
@@ -43,6 +45,7 @@ export default function PostActions({
     getStorageObjectPathFromPublicUrl(initialThumbnail),
   );
   const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
+  const [isUploadingContentImage, setIsUploadingContentImage] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -52,6 +55,31 @@ export default function PostActions({
   async function removeThumbnailFromStorage(path?: string | null) {
     if (!path) return;
     await supabase.storage.from(POST_THUMBNAIL_BUCKET).remove([path]);
+  }
+
+  function insertTextAtCursor(text: string) {
+    const textarea = contentRef.current;
+
+    if (!textarea) {
+      setContent((prev) => `${prev}${prev ? "\n\n" : ""}${text}`);
+      return;
+    }
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const before = content.slice(0, start);
+    const after = content.slice(end);
+    const prefix = before && !before.endsWith("\n") ? "\n\n" : "";
+    const suffix = after && !after.startsWith("\n") ? "\n\n" : "";
+    const nextContent = `${before}${prefix}${text}${suffix}${after}`;
+    const nextCursorPosition = (before + prefix + text).length;
+
+    setContent(nextContent);
+
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(nextCursorPosition, nextCursorPosition);
+    });
   }
 
   async function handleThumbnailChange(
@@ -97,6 +125,51 @@ export default function PostActions({
       setError("썸네일 업로드 중 오류가 발생했습니다.");
     } finally {
       setIsUploadingThumbnail(false);
+    }
+  }
+
+  async function handleContentImageChange(
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const files = Array.from(event.target.files ?? []);
+    if (files.length === 0) return;
+
+    setIsUploadingContentImage(true);
+    setError(null);
+
+    try {
+      const markdownImages: string[] = [];
+
+      for (const file of files) {
+        const nextPath = createPostContentImagePath(file.name);
+        const { error: uploadError } = await supabase.storage
+          .from(POST_THUMBNAIL_BUCKET)
+          .upload(nextPath, file, {
+            cacheControl: "3600",
+            upsert: false,
+          });
+
+        if (uploadError) {
+          throw new Error(uploadError.message);
+        }
+
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from(POST_THUMBNAIL_BUCKET).getPublicUrl(nextPath);
+
+        markdownImages.push(`![${file.name}](${publicUrl})`);
+      }
+
+      insertTextAtCursor(markdownImages.join("\n\n"));
+      event.target.value = "";
+    } catch (uploadError) {
+      const message =
+        uploadError instanceof Error
+          ? uploadError.message
+          : "본문 이미지 업로드 중 오류가 발생했습니다.";
+      setError(message);
+    } finally {
+      setIsUploadingContentImage(false);
     }
   }
 
@@ -210,7 +283,12 @@ export default function PostActions({
       <div className="flex justify-end gap-2 text-sm">
         <button
           type="button"
-          disabled={isSubmitting || isDeleting || isUploadingThumbnail}
+          disabled={
+            isSubmitting ||
+            isDeleting ||
+            isUploadingThumbnail ||
+            isUploadingContentImage
+          }
           onClick={() => {
             setIsEditing((prev) => !prev);
             setError(null);
@@ -222,7 +300,12 @@ export default function PostActions({
 
         <button
           type="button"
-          disabled={isSubmitting || isDeleting || isUploadingThumbnail}
+          disabled={
+            isSubmitting ||
+            isDeleting ||
+            isUploadingThumbnail ||
+            isUploadingContentImage
+          }
           onClick={handleDelete}
           className="rounded-md border px-3 py-1 text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
         >
@@ -245,11 +328,12 @@ export default function PostActions({
             className="w-full rounded-md border px-3 py-2 text-sm"
           />
           <textarea
+            ref={contentRef}
             value={content}
             onChange={(event) => setContent(event.target.value)}
             rows={10}
             placeholder={
-              "내용\n\n# 제목\n## 소제목\n- 목록\n```ts\nconst hello = 'markdown';\n```"
+              "내용\n\n# 제목\n## 소제목\n- 목록\n![이미지 설명](https://...)\n```ts\nconst hello = 'markdown';\n```"
             }
             className="w-full rounded-md border px-3 py-2 text-sm"
           />
@@ -257,6 +341,33 @@ export default function PostActions({
             마크다운 문법을 사용할 수 있습니다. 예: <code># 제목</code>,{" "}
             <code>**굵게**</code>, <code>- 목록</code>, <code>```코드```</code>
           </p>
+
+          <div className="space-y-3 rounded-xl border border-dashed p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium">본문 이미지</p>
+                <p className="text-xs text-muted-foreground">
+                  여러 장을 올리면 현재 커서 위치에 마크다운 이미지가
+                  삽입됩니다.
+                </p>
+              </div>
+              <label className="cursor-pointer rounded-md border px-3 py-2 text-sm hover:bg-muted">
+                {isUploadingContentImage ? "업로드 중..." : "본문 사진 추가"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  disabled={
+                    isSubmitting ||
+                    isUploadingThumbnail ||
+                    isUploadingContentImage
+                  }
+                  onChange={handleContentImageChange}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          </div>
 
           <div className="space-y-3 rounded-xl border bg-background p-4">
             <div className="flex items-center justify-between gap-2">
@@ -287,7 +398,11 @@ export default function PostActions({
                 <input
                   type="file"
                   accept="image/*"
-                  disabled={isSubmitting || isUploadingThumbnail}
+                  disabled={
+                    isSubmitting ||
+                    isUploadingThumbnail ||
+                    isUploadingContentImage
+                  }
                   onChange={handleThumbnailChange}
                   className="hidden"
                 />
@@ -308,7 +423,11 @@ export default function PostActions({
                 <div className="flex justify-end">
                   <button
                     type="button"
-                    disabled={isSubmitting || isUploadingThumbnail}
+                    disabled={
+                      isSubmitting ||
+                      isUploadingThumbnail ||
+                      isUploadingContentImage
+                    }
                     onClick={handleThumbnailRemove}
                     className="rounded-md border px-3 py-2 text-sm text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                   >
@@ -324,7 +443,9 @@ export default function PostActions({
           <div className="flex justify-end gap-2">
             <button
               type="button"
-              disabled={isSubmitting || isUploadingThumbnail}
+              disabled={
+                isSubmitting || isUploadingThumbnail || isUploadingContentImage
+              }
               onClick={async () => {
                 if (thumbnailPath && thumbnailUrl !== savedThumbnailUrl) {
                   await removeThumbnailFromStorage(thumbnailPath);
@@ -345,13 +466,15 @@ export default function PostActions({
             </button>
             <button
               type="button"
-              disabled={isSubmitting || isUploadingThumbnail}
+              disabled={
+                isSubmitting || isUploadingThumbnail || isUploadingContentImage
+              }
               onClick={handleUpdate}
               className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting
                 ? "저장 중..."
-                : isUploadingThumbnail
+                : isUploadingThumbnail || isUploadingContentImage
                   ? "업로드 중..."
                   : "수정 저장"}
             </button>

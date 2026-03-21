@@ -26,6 +26,7 @@ export type DbPost = {
   created_at: Date;
   author_name: string;
   category_name: string;
+  view_count: number;
   likes_count: number;
   comments_count: number;
   user_id?: number;
@@ -85,6 +86,7 @@ function mapPost(post: {
   userId?: bigint;
   user: { name: string | null };
   category: { name: string };
+  views?: { viewCount: bigint | number } | null;
   _count?: { likes?: number; comments?: number };
 }): DbPost {
   return {
@@ -95,6 +97,7 @@ function mapPost(post: {
     created_at: post.createdAt,
     author_name: post.user.name ?? "Unknown",
     category_name: post.category.name,
+    view_count: Number(post.views?.viewCount ?? 0),
     likes_count: post._count?.likes ?? 0,
     comments_count: post._count?.comments ?? 0,
     user_id: post.userId ? bigintToNumber(post.userId) : undefined,
@@ -285,6 +288,7 @@ export async function findPostById(id: number) {
     include: {
       user: { select: { name: true } },
       category: { select: { name: true } },
+      views: { select: { viewCount: true } },
       _count: {
         select: {
           likes: true,

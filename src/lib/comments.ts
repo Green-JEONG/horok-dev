@@ -7,6 +7,7 @@ export type CommentRow = {
   parent_id: number | null;
   content: string;
   is_deleted: boolean;
+  is_edited: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -28,6 +29,7 @@ function mapComment(comment: {
     parent_id: comment.parentId ? Number(comment.parentId) : null,
     content: comment.content,
     is_deleted: comment.isDeleted,
+    is_edited: comment.updatedAt.getTime() > comment.createdAt.getTime(),
     created_at: comment.createdAt.toISOString(),
     updated_at: comment.updatedAt.toISOString(),
   };
@@ -37,7 +39,6 @@ export async function getCommentsByPost(postId: number) {
   const comments = await prisma.comment.findMany({
     where: {
       postId: BigInt(postId),
-      isDeleted: false,
     },
     orderBy: { createdAt: "asc" },
     include: {

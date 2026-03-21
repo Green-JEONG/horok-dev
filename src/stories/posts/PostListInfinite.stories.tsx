@@ -8,6 +8,7 @@ const mockPosts = Array.from({ length: 8 }).map((_, i) => ({
   thumbnail: null,
   category_name: "React",
   author_name: "홍초",
+  view_count: Math.floor(Math.random() * 100),
   likes_count: Math.floor(Math.random() * 10),
   comments_count: Math.floor(Math.random() * 5),
   created_at: new Date(),

@@ -22,9 +22,9 @@ export default async function CommentList({ postId }: { postId: number }) {
 
   for (const comment of commentMap.values()) {
     if (comment.parent_id) {
-      const parent = commentMap.get(comment.parent_id);
-      if (parent) {
-        parent.replies.push(comment);
+      const topLevelParent = findTopLevelParent(comment, commentMap);
+      if (topLevelParent) {
+        topLevelParent.replies.push(comment);
         continue;
       }
     }
@@ -56,4 +56,22 @@ export default async function CommentList({ postId }: { postId: number }) {
       )}
     </section>
   );
+}
+
+function findTopLevelParent(
+  comment: CommentNode,
+  commentMap: Map<number, CommentNode>,
+) {
+  let currentParentId = comment.parent_id;
+  let topLevelParent: CommentNode | null = null;
+
+  while (currentParentId) {
+    const parent = commentMap.get(currentParentId);
+    if (!parent) return null;
+
+    topLevelParent = parent;
+    currentParentId = parent.parent_id;
+  }
+
+  return topLevelParent;
 }
