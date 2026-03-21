@@ -34,7 +34,7 @@ export default async function PostFooter({ postId }: Props) {
   }
 
   return (
-    <footer className="mt-6 flex items-center justify-between border-t pt-4">
+    <footer className="flex items-center justify-between border-t pt-4">
       <div className="space-y-1">
         <LikeButton
           postId={postId}

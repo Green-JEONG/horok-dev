@@ -1,7 +1,9 @@
+import type { ComponentProps } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
+import CodeBlock from "@/components/posts/CodeBlock";
 
 type Props = {
   content: string;
@@ -20,11 +22,10 @@ export default function MarkdownRenderer({ content, className = "" }: Props) {
         "[&_h2]:mt-7 [&_h2]:mb-3 [&_h2]:text-2xl [&_h2]:font-semibold",
         "[&_h3]:mt-6 [&_h3]:mb-3 [&_h3]:text-xl [&_h3]:font-semibold",
         "[&_hr]:my-6 [&_hr]:border-border",
-        "[&_img]:rounded-xl",
+        "[&_img]:my-4 [&_img]:max-h-[32rem] [&_img]:w-full [&_img]:rounded-xl [&_img]:border [&_img]:border-border [&_img]:object-contain",
         "[&_li]:my-1",
         "[&_ol]:my-4 [&_ol]:list-decimal [&_ol]:pl-6",
         "[&_p]:my-4 [&_p]:whitespace-pre-wrap",
-        "[&_pre]:my-4 [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_pre]:bg-muted [&_pre]:p-4",
         "[&_pre_code]:bg-transparent [&_pre_code]:p-0",
         "[&_table]:my-4 [&_table]:w-full [&_table]:border-collapse [&_table]:overflow-hidden",
         "[&_td]:border [&_td]:border-border [&_td]:px-3 [&_td]:py-2",
@@ -36,9 +37,53 @@ export default function MarkdownRenderer({ content, className = "" }: Props) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeSanitize, rehypeHighlight]}
+        components={{
+          code(props) {
+            const { children, className: codeClassName, ...rest } = props;
+            const inline =
+              "inline" in props && typeof props.inline === "boolean"
+                ? props.inline
+                : false;
+
+            if (inline) {
+              return (
+                <code className={codeClassName} {...rest}>
+                  {children}
+                </code>
+              );
+            }
+
+            const code = getCodeText(children).replace(/\n$/, "");
+
+            return (
+              <CodeBlock code={code} className={codeClassName}>
+                {children}
+              </CodeBlock>
+            );
+          },
+        }}
       >
         {content}
       </ReactMarkdown>
     </div>
   );
+}
+
+function getCodeText(children: ComponentProps<"code">["children"]): string {
+  if (typeof children === "string") return children;
+  if (typeof children === "number") return String(children);
+  if (!children) return "";
+  if (Array.isArray(children)) {
+    return children.map((child) => getCodeText(child)).join("");
+  }
+  if (typeof children === "object" && "props" in children) {
+    return getCodeText(
+      (
+        children as {
+          props?: ComponentProps<"code">;
+        }
+      ).props?.children,
+    );
+  }
+  return "";
 }
