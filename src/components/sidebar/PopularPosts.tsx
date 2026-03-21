@@ -20,7 +20,7 @@ export default function PopularPosts() {
   }, []);
 
   return (
-    <section className="space-y-3">
+    <section className="-mx-6 px-6 space-y-3">
       <div className="flex items-center gap-2">
         <Image
           src="/fire.svg"
@@ -36,10 +36,9 @@ export default function PopularPosts() {
           <li key={post.id}>
             <Link
               href={`/posts/${post.id}`}
-              className="flex justify-between text-muted-foreground hover:text-foreground"
+              className="block overflow-hidden text-muted-foreground hover:text-foreground"
             >
-              <span className="truncate">{post.title}</span>
-              <span className="ml-2 text-xs">👁️ {post.viewCount}</span>
+              <span className="block truncate">{post.title}</span>
             </Link>
           </li>
         ))}
