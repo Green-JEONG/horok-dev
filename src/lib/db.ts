@@ -24,6 +24,7 @@ export type DbPost = {
   content: string;
   thumbnail: string | null;
   created_at: Date;
+  updated_at: Date;
   author_name: string;
   category_name: string;
   view_count: number;
@@ -83,6 +84,7 @@ function mapPost(post: {
   content: string;
   thumbnail: string | null;
   createdAt: Date;
+  updatedAt: Date;
   userId?: bigint;
   user: { name: string | null };
   category: { name: string };
@@ -95,6 +97,7 @@ function mapPost(post: {
     content: post.content,
     thumbnail: post.thumbnail,
     created_at: post.createdAt,
+    updated_at: post.updatedAt,
     author_name: post.user.name ?? "Unknown",
     category_name: post.category.name,
     view_count: Number(post.views?.viewCount ?? 0),
