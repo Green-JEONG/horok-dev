@@ -9,6 +9,8 @@ export default function PostHeader({ post }: { post: DbPost }) {
         <span>{post.author_name}</span>
         <span>·</span>
         <time>{new Date(post.created_at).toLocaleString("ko-KR")}</time>
+        <span>·</span>
+        <span>조회 {post.view_count}</span>
         <span className="rounded-full border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground">
           #{post.category_name}
         </span>

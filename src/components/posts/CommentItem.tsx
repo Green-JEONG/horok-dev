@@ -9,6 +9,8 @@ export type CommentNode = {
   user_id: number;
   parent_id: number | null;
   content: string;
+  is_deleted: boolean;
+  is_edited: boolean;
   created_at: string;
   author: string;
   replies: CommentNode[];
@@ -32,8 +34,9 @@ export default function CommentItem({
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const canManage = comment.user_id === currentUserId;
-  const canReply = isLoggedIn && comment.parent_id === null;
+  const canManage = comment.user_id === currentUserId && !comment.is_deleted;
+  const canReply =
+    isLoggedIn && comment.parent_id === null && !comment.is_deleted;
 
   async function handleUpdate() {
     const trimmedContent = content.trim();
@@ -101,6 +104,7 @@ export default function CommentItem({
         <span className="font-medium">{comment.author}</span>
         <span className="text-muted-foreground">
           {new Date(comment.created_at).toLocaleString("ko-KR")}
+          {comment.is_edited ? " (수정)" : ""}
         </span>
       </div>
 
@@ -139,7 +143,13 @@ export default function CommentItem({
           </div>
         </div>
       ) : (
-        <p className="mt-2 whitespace-pre-wrap text-sm">{comment.content}</p>
+        <p
+          className={`mt-2 whitespace-pre-wrap text-sm ${
+            comment.is_deleted ? "text-muted-foreground" : ""
+          }`}
+        >
+          {comment.is_deleted ? "삭제된 댓글입니다." : comment.content}
+        </p>
       )}
 
       <div className="mt-3 flex flex-wrap justify-end gap-2 text-xs text-muted-foreground">

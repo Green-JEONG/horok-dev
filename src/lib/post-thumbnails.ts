@@ -12,7 +12,12 @@ function sanitizeFileName(fileName: string) {
 
 export function createPostThumbnailPath(fileName: string) {
   const safeFileName = sanitizeFileName(fileName) || "thumbnail";
-  return `public/${crypto.randomUUID()}-${safeFileName}`;
+  return `public/thumbnails/${crypto.randomUUID()}-${safeFileName}`;
+}
+
+export function createPostContentImagePath(fileName: string) {
+  const safeFileName = sanitizeFileName(fileName) || "image";
+  return `public/content/${crypto.randomUUID()}-${safeFileName}`;
 }
 
 export function getStorageObjectPathFromPublicUrl(url?: string | null) {

@@ -2,16 +2,19 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import MarkdownRenderer from "@/components/posts/MarkdownRenderer";
 import {
+  createPostContentImagePath,
   createPostThumbnailPath,
   getStorageObjectPathFromPublicUrl,
+  POST_THUMBNAIL_BUCKET,
 } from "@/lib/post-thumbnails";
 import { supabase } from "@/lib/supabase";
 
 export default function PostEditor() {
   const router = useRouter();
+  const contentRef = useRef<HTMLTextAreaElement>(null);
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -19,12 +22,38 @@ export default function PostEditor() {
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
   const [thumbnailPath, setThumbnailPath] = useState<string | null>(null);
   const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
+  const [isUploadingContentImage, setIsUploadingContentImage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function removeThumbnailFromStorage(path?: string | null) {
     if (!path) return;
-    await supabase.storage.from("post-thumbnails").remove([path]);
+    await supabase.storage.from(POST_THUMBNAIL_BUCKET).remove([path]);
+  }
+
+  function insertTextAtCursor(text: string) {
+    const textarea = contentRef.current;
+
+    if (!textarea) {
+      setContent((prev) => `${prev}${prev ? "\n\n" : ""}${text}`);
+      return;
+    }
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const before = content.slice(0, start);
+    const after = content.slice(end);
+    const prefix = before && !before.endsWith("\n") ? "\n\n" : "";
+    const suffix = after && !after.startsWith("\n") ? "\n\n" : "";
+    const nextContent = `${before}${prefix}${text}${suffix}${after}`;
+    const nextCursorPosition = (before + prefix + text).length;
+
+    setContent(nextContent);
+
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(nextCursorPosition, nextCursorPosition);
+    });
   }
 
   async function handleThumbnailChange(
@@ -43,7 +72,7 @@ export default function PostEditor() {
 
       const nextPath = createPostThumbnailPath(file.name);
       const { error: uploadError } = await supabase.storage
-        .from("post-thumbnails")
+        .from(POST_THUMBNAIL_BUCKET)
         .upload(nextPath, file, {
           cacheControl: "3600",
           upsert: false,
@@ -56,7 +85,7 @@ export default function PostEditor() {
 
       const {
         data: { publicUrl },
-      } = supabase.storage.from("post-thumbnails").getPublicUrl(nextPath);
+      } = supabase.storage.from(POST_THUMBNAIL_BUCKET).getPublicUrl(nextPath);
 
       setThumbnailPath(nextPath);
       setThumbnailUrl(publicUrl);
@@ -65,6 +94,51 @@ export default function PostEditor() {
       setError("썸네일 업로드 중 오류가 발생했습니다.");
     } finally {
       setIsUploadingThumbnail(false);
+    }
+  }
+
+  async function handleContentImageChange(
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const files = Array.from(event.target.files ?? []);
+    if (files.length === 0) return;
+
+    setIsUploadingContentImage(true);
+    setError(null);
+
+    try {
+      const markdownImages: string[] = [];
+
+      for (const file of files) {
+        const nextPath = createPostContentImagePath(file.name);
+        const { error: uploadError } = await supabase.storage
+          .from(POST_THUMBNAIL_BUCKET)
+          .upload(nextPath, file, {
+            cacheControl: "3600",
+            upsert: false,
+          });
+
+        if (uploadError) {
+          throw new Error(uploadError.message);
+        }
+
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from(POST_THUMBNAIL_BUCKET).getPublicUrl(nextPath);
+
+        markdownImages.push(`![${file.name}](${publicUrl})`);
+      }
+
+      insertTextAtCursor(markdownImages.join("\n\n"));
+      event.target.value = "";
+    } catch (uploadError) {
+      const message =
+        uploadError instanceof Error
+          ? uploadError.message
+          : "본문 이미지 업로드 중 오류가 발생했습니다.";
+      setError(message);
+    } finally {
+      setIsUploadingContentImage(false);
     }
   }
 
@@ -163,7 +237,9 @@ export default function PostEditor() {
             <input
               type="file"
               accept="image/*"
-              disabled={isUploadingThumbnail || isSubmitting}
+              disabled={
+                isUploadingThumbnail || isUploadingContentImage || isSubmitting
+              }
               onChange={handleThumbnailChange}
               className="hidden"
             />
@@ -195,11 +271,36 @@ export default function PostEditor() {
         ) : null}
       </div>
 
+      <div className="space-y-3 rounded-xl border border-dashed p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium">본문 이미지</p>
+            <p className="text-xs text-muted-foreground">
+              여러 장을 올리면 현재 커서 위치에 마크다운 이미지가 삽입됩니다.
+            </p>
+          </div>
+          <label className="cursor-pointer rounded-md border px-3 py-2 text-sm hover:bg-muted">
+            {isUploadingContentImage ? "업로드 중..." : "본문 사진 추가"}
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              disabled={
+                isUploadingThumbnail || isUploadingContentImage || isSubmitting
+              }
+              onChange={handleContentImageChange}
+              className="hidden"
+            />
+          </label>
+        </div>
+      </div>
+
       <textarea
+        ref={contentRef}
         value={content}
         onChange={(e) => setContent(e.target.value)}
         placeholder={
-          "글을 작성해보세요...\n\n# 제목\n## 소제목\n- 목록\n```ts\nconst hello = 'markdown';\n```"
+          "글을 작성해보세요...\n\n# 제목\n## 소제목\n- 목록\n![이미지 설명](https://...)\n```ts\nconst hello = 'markdown';\n```"
         }
         rows={14}
         className="w-full resize-none rounded-md border px-3 py-3 text-sm leading-relaxed"
@@ -230,7 +331,9 @@ export default function PostEditor() {
       <div className="flex justify-end gap-2 pt-4">
         <button
           type="button"
-          disabled={isSubmitting || isUploadingThumbnail}
+          disabled={
+            isSubmitting || isUploadingThumbnail || isUploadingContentImage
+          }
           onClick={() => router.back()}
           className="rounded-md border px-4 py-2 text-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
         >
@@ -239,13 +342,15 @@ export default function PostEditor() {
 
         <button
           type="button"
-          disabled={isSubmitting || isUploadingThumbnail}
+          disabled={
+            isSubmitting || isUploadingThumbnail || isUploadingContentImage
+          }
           onClick={handleSubmit}
           className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSubmitting
             ? "게시 중..."
-            : isUploadingThumbnail
+            : isUploadingThumbnail || isUploadingContentImage
               ? "업로드 중..."
               : "게시하기"}
         </button>
