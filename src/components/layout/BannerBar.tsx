@@ -20,14 +20,15 @@ export default function BannerBar() {
 
   return (
     <div className="w-full bg-primary">
-      <div className="mx-auto max-w-6x text-center pt-4 pb-3">
-        {/* 메시지 */}
-        <p className="text-sm font-medium text-primary-foreground">
-          {messages[index]}
-        </p>
+      <div className="mx-auto max-w-6xl px-4 py-3 text-center">
+        <div className="mx-auto flex min-h-10 max-w-2xl items-center justify-center overflow-hidden">
+          <p className="break-keep text-sm leading-5 font-medium text-primary-foreground sm:whitespace-nowrap">
+            {messages[index]}
+          </p>
+        </div>
 
         {/* 페이지 인디케이터 */}
-        <div className="flex justify-center gap-2 mt-3">
+        <div className="mt-2 flex justify-center gap-2">
           {messages.map((message, i) => (
             <button
               key={message}
