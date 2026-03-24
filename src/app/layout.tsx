@@ -37,7 +37,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko">
-      <body className="flex h-screen flex-col overflow-hidden">
+      <body className="flex min-h-dvh flex-col overflow-x-hidden">
         <AuthSessionProvider>
           <Header />
           <LoginWelcomeToast />
@@ -46,12 +46,13 @@ export default function RootLayout({
           {/* Main */}
           <main
             className="
-    mx-auto
-    flex
-    w-full
-    max-w-6xl
-    flex-1
-    overflow-hidden
+            mx-auto
+            flex
+            w-full
+            max-w-6xl
+            flex-1
+            md:min-h-0
+            md:overflow-hidden
   "
           >
             {/* Left Sidebar */}
@@ -89,8 +90,8 @@ export default function RootLayout({
     px-4
     md:px-6
     py-6
-    h-[calc(100vh-104px)]
-    overflow-y-auto
+    md:min-h-0
+    md:overflow-y-auto
     scrollbar-hide
   "
             >

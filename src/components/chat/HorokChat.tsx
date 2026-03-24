@@ -81,7 +81,7 @@ export default function HorokChat() {
   }
 
   return (
-    <div className="pointer-events-none fixed right-4 bottom-4 z-50 flex items-end justify-end sm:right-6 sm:bottom-6">
+    <div className="pointer-events-none fixed right-4 bottom-4 z-40 flex items-end justify-end sm:right-6 sm:bottom-6">
       <div className="pointer-events-auto flex flex-col items-end gap-3">
         <div
           className={cn(

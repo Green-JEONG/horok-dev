@@ -20,12 +20,6 @@ const DAYS = WEEKS * 7;
 export default function ContributionGrid() {
   const [data, setData] = useState<Contribution[]>([]);
 
-  useEffect(() => {
-    fetch("/api/users/contributions")
-      .then((res) => res.json())
-      .then(setData);
-  }, []);
-
   const map = useMemo(() => {
     const m = new Map<string, number>();
     for (const d of data) {
@@ -70,10 +64,11 @@ export default function ContributionGrid() {
       <p className="text-sm font-semibold"></p>
 
       <div
-        className="grid gap-1"
+        className="grid w-full gap-1"
         style={{
           gridAutoFlow: "column",
           gridTemplateRows: "repeat(7, minmax(0, 1fr))",
+          gridTemplateColumns: `repeat(${WEEKS}, minmax(0, 1fr))`,
         }}
       >
         {days.map((date) => {
@@ -82,7 +77,7 @@ export default function ContributionGrid() {
             <div
               key={date}
               title={`${date}: ${count}회`}
-              className={`h-3 w-full rounded ${getColor(count)}`}
+              className={`aspect-square w-full rounded-[3px] ${getColor(count)}`}
             />
           );
         })}

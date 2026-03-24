@@ -250,7 +250,7 @@ export default function LoginModal({ open, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50">
+    <div className="fixed inset-0 z-[70]">
       {/* dim overlay */}
       <button
         type="button"
