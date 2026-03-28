@@ -213,8 +213,10 @@ export async function getUserPosts(
 export async function getMyPosts(
   userId: number,
   sort: SortType = DEFAULT_SORT,
+  limit?: number,
+  offset = 0,
 ): Promise<DbPost[]> {
-  return getUserPosts(userId, sort);
+  return getUserPosts(userId, sort, limit, offset);
 }
 
 export async function getLikedPosts(
