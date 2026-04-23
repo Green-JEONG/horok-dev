@@ -12,6 +12,7 @@ import {
   getStorageObjectPathFromPublicUrl,
   POST_THUMBNAIL_BUCKET,
 } from "@/lib/post-thumbnails";
+import { getTechFeedNewPostPath } from "@/lib/routes";
 import { supabase } from "@/lib/supabase";
 
 const markdownTools = [
@@ -40,7 +41,39 @@ const markdownTools = [
 type MarkdownToolAction = (typeof markdownTools)[number]["action"];
 type EditorTab = "thumbnail" | "write" | "preview";
 
-export default function PostEditor() {
+type PostEditorProps = {
+  mode?: "create" | "edit";
+  postId?: number;
+  initialTitle?: string;
+  initialContent?: string;
+  initialCategoryName?: string;
+  initialThumbnail?: string | null;
+  cancelLabel?: string;
+  submitLabel?: string;
+  submittingLabel?: string;
+  categoryLocked?: boolean;
+  successPathPrefix?: string;
+  fixedTagOptions?: string[];
+  onCancel?: () => void;
+  onSuccess?: (payload: unknown) => void;
+};
+
+export default function PostEditor({
+  mode = "create",
+  postId,
+  initialTitle = "",
+  initialContent = "",
+  initialCategoryName = "",
+  initialThumbnail = null,
+  cancelLabel = "취소",
+  submitLabel = mode === "edit" ? "수정 저장" : "게시하기",
+  submittingLabel = mode === "edit" ? "저장 중..." : "게시 중...",
+  categoryLocked = false,
+  successPathPrefix = "/horok-tech/feeds/posts",
+  fixedTagOptions = [],
+  onCancel,
+  onSuccess,
+}: PostEditorProps) {
   const router = useRouter();
   const contentRef = useRef<HTMLTextAreaElement>(null);
   const contentImageInputRef = useRef<HTMLInputElement>(null);
@@ -48,17 +81,31 @@ export default function PostEditor() {
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
   const tagInputRef = useRef<HTMLInputElement>(null);
 
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [tags, setTags] = useState<string[]>([]);
+  const [title, setTitle] = useState(initialTitle);
+  const [content, setContent] = useState(initialContent);
+  const [tags, setTags] = useState(
+    initialCategoryName ? [initialCategoryName] : [],
+  );
   const [tagInput, setTagInput] = useState("");
-  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
-  const [thumbnailPath, setThumbnailPath] = useState<string | null>(null);
+  const [selectedFixedTag, setSelectedFixedTag] = useState(
+    fixedTagOptions.includes(initialCategoryName)
+      ? initialCategoryName
+      : (fixedTagOptions[0] ?? ""),
+  );
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(
+    initialThumbnail,
+  );
+  const [thumbnailPath, setThumbnailPath] = useState<string | null>(
+    getStorageObjectPathFromPublicUrl(initialThumbnail),
+  );
   const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
   const [isUploadingContentImage, setIsUploadingContentImage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<EditorTab>("write");
   const [error, setError] = useState<string | null>(null);
+  const shouldShowCategoryBadge = !(
+    categoryLocked && fixedTagOptions.length > 0
+  );
 
   async function removeThumbnailFromStorage(path?: string | null) {
     if (!path) return;
@@ -314,7 +361,7 @@ export default function PostEditor() {
     setError(null);
 
     try {
-      if (thumbnailPath) {
+      if (mode === "create" && thumbnailPath) {
         await removeThumbnailFromStorage(thumbnailPath);
       }
 
@@ -334,6 +381,15 @@ export default function PostEditor() {
       const {
         data: { publicUrl },
       } = supabase.storage.from(POST_THUMBNAIL_BUCKET).getPublicUrl(nextPath);
+
+      const previousUnsavedPath =
+        mode === "edit" && thumbnailPath && thumbnailUrl !== initialThumbnail
+          ? thumbnailPath
+          : null;
+
+      if (previousUnsavedPath && previousUnsavedPath !== nextPath) {
+        await removeThumbnailFromStorage(previousUnsavedPath);
+      }
 
       setThumbnailPath(nextPath);
       setThumbnailUrl(publicUrl);
@@ -436,11 +492,16 @@ export default function PostEditor() {
   }
 
   async function handleThumbnailRemove() {
-    const path =
-      thumbnailPath ?? getStorageObjectPathFromPublicUrl(thumbnailUrl);
-
     try {
-      await removeThumbnailFromStorage(path);
+      const path =
+        thumbnailPath ?? getStorageObjectPathFromPublicUrl(thumbnailUrl);
+
+      if (mode === "create") {
+        await removeThumbnailFromStorage(path);
+      } else if (thumbnailPath && thumbnailUrl !== initialThumbnail) {
+        await removeThumbnailFromStorage(thumbnailPath);
+      }
+
       setThumbnailPath(null);
       setThumbnailUrl(null);
       setError(null);
@@ -452,7 +513,8 @@ export default function PostEditor() {
   async function handleSubmit() {
     const trimmedTitle = title.trim();
     const trimmedContent = content.trim();
-    const categoryName = tags[0];
+    const categoryName =
+      categoryLocked && fixedTagOptions.length > 0 ? selectedFixedTag : tags[0];
 
     if (!trimmedTitle || !trimmedContent || !categoryName) {
       setError("제목, 태그, 내용을 모두 입력해주세요.");
@@ -463,8 +525,10 @@ export default function PostEditor() {
     setError(null);
 
     try {
-      const response = await fetch("/api/posts", {
-        method: "POST",
+      const endpoint = mode === "edit" ? `/api/posts/${postId}` : "/api/posts";
+      const method = mode === "edit" ? "PUT" : "POST";
+      const response = await fetch(endpoint, {
+        method,
         headers: {
           "Content-Type": "application/json",
         },
@@ -483,13 +547,32 @@ export default function PostEditor() {
         return;
       }
 
-      if (payload?.id) {
-        router.push(`/posts/${payload.id}`);
+      if (
+        mode === "edit" &&
+        initialThumbnail &&
+        initialThumbnail !== thumbnailUrl
+      ) {
+        const oldSavedThumbnailPath =
+          getStorageObjectPathFromPublicUrl(initialThumbnail);
+        if (oldSavedThumbnailPath) {
+          await removeThumbnailFromStorage(oldSavedThumbnailPath);
+        }
+      }
+
+      onSuccess?.(payload);
+
+      if (mode === "edit") {
         router.refresh();
         return;
       }
 
-      router.push("/");
+      if ((payload as { id?: number } | null)?.id) {
+        router.push(`${successPathPrefix}/${payload.id}`);
+        router.refresh();
+        return;
+      }
+
+      router.push(getTechFeedNewPostPath());
       router.refresh();
     } catch {
       setError("게시글 저장 중 오류가 발생했습니다.");
@@ -512,47 +595,71 @@ export default function PostEditor() {
 
       <div className="space-y-2">
         <div className="flex min-h-12 w-full flex-wrap items-center gap-2 rounded-md border border-border/80 bg-muted/20 px-3 py-2 transition focus-within:border-primary/60 focus-within:bg-background focus-within:ring-4 focus-within:ring-primary/10">
-          {tags.map((tag) => (
-            <Badge
-              key={tag}
-              variant="secondary"
-              className="gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-foreground"
-            >
-              {tag}
-              <button
-                type="button"
-                onClick={() => removeTag(tag)}
-                className="text-muted-foreground transition hover:text-foreground"
-                aria-label={`${tag} 태그 삭제`}
-              >
-                ×
-              </button>
-            </Badge>
-          ))}
-          <input
-            id="post-tags"
-            ref={tagInputRef}
-            value={tagInput}
-            onChange={(e) => setTagInput(e.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                addTag(tagInput);
-                return;
-              }
+          {shouldShowCategoryBadge
+            ? tags.map((tag) => (
+                <Badge
+                  key={tag}
+                  variant="secondary"
+                  className="gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-foreground"
+                >
+                  {tag}
+                  {categoryLocked ? null : (
+                    <button
+                      type="button"
+                      onClick={() => removeTag(tag)}
+                      className="text-muted-foreground transition hover:text-foreground"
+                      aria-label={`${tag} 태그 삭제`}
+                    >
+                      ×
+                    </button>
+                  )}
+                </Badge>
+              ))
+            : null}
+          {fixedTagOptions.map((option) => {
+            const isActive = selectedFixedTag === option;
 
-              if (
-                event.key === "Backspace" &&
-                tagInput.length === 0 &&
-                tags.length > 0
-              ) {
-                event.preventDefault();
-                setTags((prev) => prev.slice(0, -1));
-              }
-            }}
-            placeholder={tags.length === 0 ? "태그 및 카테고리" : ""}
-            className="h-8 min-w-32 flex-1 bg-transparent text-sm outline-none placeholder:text-zinc-400"
-          />
+            return (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setSelectedFixedTag(option)}
+                className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition ${
+                  isActive
+                    ? "border-primary bg-primary/10 text-foreground"
+                    : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                }`}
+              >
+                {option}
+              </button>
+            );
+          })}
+          {categoryLocked ? null : (
+            <input
+              id="post-tags"
+              ref={tagInputRef}
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  addTag(tagInput);
+                  return;
+                }
+
+                if (
+                  event.key === "Backspace" &&
+                  tagInput.length === 0 &&
+                  tags.length > 0
+                ) {
+                  event.preventDefault();
+                  setTags((prev) => prev.slice(0, -1));
+                }
+              }}
+              placeholder={tags.length === 0 ? "태그 및 카테고리" : ""}
+              className="h-8 min-w-32 flex-1 bg-transparent text-sm outline-none placeholder:text-zinc-400"
+            />
+          )}
         </div>
         <input
           ref={contentImageInputRef}
@@ -632,7 +739,11 @@ export default function PostEditor() {
           </div>
         ) : null}
 
-        <div className="h-[420px] rounded-md border border-border/80 bg-muted/15">
+        <div
+          className={`rounded-md border border-border/80 bg-muted/15 ${
+            activeTab === "preview" ? "" : "h-[420px]"
+          }`}
+        >
           {activeTab === "thumbnail" ? (
             <div className="flex h-full flex-col px-5 py-5">
               <div className="flex-1">
@@ -703,7 +814,7 @@ export default function PostEditor() {
               />
             </div>
           ) : activeTab === "preview" ? (
-            <div className="h-full overflow-y-auto px-5 py-5">
+            <div className="px-5 py-5">
               {content.trim() || thumbnailUrl ? (
                 <div className="space-y-5">
                   {thumbnailUrl ? (
@@ -760,10 +871,17 @@ export default function PostEditor() {
           disabled={
             isSubmitting || isUploadingThumbnail || isUploadingContentImage
           }
-          onClick={() => router.back()}
+          onClick={() => {
+            if (onCancel) {
+              onCancel();
+              return;
+            }
+
+            router.back();
+          }}
           className="min-w-24"
         >
-          취소
+          {cancelLabel}
         </Button>
 
         <Button
@@ -776,10 +894,10 @@ export default function PostEditor() {
           className="min-w-28"
         >
           {isSubmitting
-            ? "게시 중..."
+            ? submittingLabel
             : isUploadingThumbnail || isUploadingContentImage
               ? "업로드 중..."
-              : "게시하기"}
+              : submitLabel}
         </Button>
       </div>
     </section>
