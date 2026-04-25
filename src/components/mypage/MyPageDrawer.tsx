@@ -4,7 +4,7 @@ import { Circle, CircleCheckBig, Settings } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import AccountSettingsModal from "@/components/mypage/AccountSettingsModal";
 import { cn } from "@/lib/utils";
 
@@ -65,6 +65,13 @@ export default function MyPageDrawer({ open, onClose }: Props) {
     comments: 0,
     friends: 0,
   });
+  const getCallbackUrl = useCallback(() => {
+    if (typeof window === "undefined") {
+      return "/";
+    }
+
+    return `${window.location.pathname}${window.location.search}`;
+  }, []);
 
   const notifyNotificationsUpdated = () => {
     window.dispatchEvent(new Event(NOTIFICATIONS_UPDATED_EVENT));
@@ -355,7 +362,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
                 return;
               }
 
-              await signOut({ callbackUrl: "/" });
+              await signOut({ callbackUrl: getCallbackUrl() });
             }}
           >
             회원탈퇴
@@ -364,7 +371,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
           <button
             type="button"
             className="w-full rounded-md text-sm text-muted-foreground"
-            onClick={() => signOut({ callbackUrl: "/" })}
+            onClick={() => signOut({ callbackUrl: getCallbackUrl() })}
           >
             로그아웃
           </button>

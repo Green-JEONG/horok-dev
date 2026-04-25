@@ -76,6 +76,13 @@ export default function LoginModal({ open, onClose }: Props) {
     !signupPasswordConfirm ||
     !isSignupPasswordValid ||
     !isSignupPasswordMatched;
+  const getCallbackUrl = useCallback(() => {
+    if (typeof window === "undefined") {
+      return "/";
+    }
+
+    return `${window.location.pathname}${window.location.search}`;
+  }, []);
 
   const handleClose = useCallback(() => {
     onClose();
@@ -118,6 +125,7 @@ export default function LoginModal({ open, onClose }: Props) {
     const res = await signIn("credentials", {
       email,
       password,
+      callbackUrl: getCallbackUrl(),
       redirect: false,
     });
 
@@ -129,8 +137,10 @@ export default function LoginModal({ open, onClose }: Props) {
     }
 
     if (res?.ok) {
+      const callbackUrl = getCallbackUrl();
       markLoginWelcomeToast();
       handleClose(); // 로그인 성공 → 모달 닫기
+      router.replace(callbackUrl);
       router.refresh();
     }
   }
@@ -238,7 +248,7 @@ export default function LoginModal({ open, onClose }: Props) {
       const res = await signIn("nodemailer", {
         email: normalizedEmail,
         redirect: false,
-        callbackUrl: "/",
+        callbackUrl: getCallbackUrl(),
       });
 
       if (res?.error) {
@@ -374,7 +384,7 @@ export default function LoginModal({ open, onClose }: Props) {
                     type="button"
                     onClick={() => {
                       markLoginWelcomeToast();
-                      signIn("github");
+                      signIn("github", { callbackUrl: getCallbackUrl() });
                     }}
                     className="flex h-10 w-10 items-center justify-center rounded-full border hover:bg-muted"
                   >
@@ -389,7 +399,7 @@ export default function LoginModal({ open, onClose }: Props) {
                     type="button"
                     onClick={() => {
                       markLoginWelcomeToast();
-                      signIn("google");
+                      signIn("google", { callbackUrl: getCallbackUrl() });
                     }}
                     className="flex h-10 w-10 items-center justify-center rounded-full border hover:bg-muted"
                   >
