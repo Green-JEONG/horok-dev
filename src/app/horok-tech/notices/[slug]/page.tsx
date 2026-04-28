@@ -78,6 +78,7 @@ export default async function HorokTechNoticeDetailPage({ params }: Props) {
           view_count: notice.viewCount,
           likes_count: notice.likesCount,
           comments_count: notice.commentsCount,
+          is_banner: notice.isBanner,
           is_hidden: notice.isHidden,
           user_id: notice.userId,
         }}
@@ -89,6 +90,7 @@ export default async function HorokTechNoticeDetailPage({ params }: Props) {
         initialCategoryName={notice.categoryName}
         initialThumbnail={notice.thumbnail}
         initialIsHidden={notice.isHidden}
+        initialIsBanner={notice.isBanner}
         isOwner={isOwner}
         redirectPath="/horok-tech/notices"
         categoryLocked
@@ -107,6 +109,7 @@ export default async function HorokTechNoticeDetailPage({ params }: Props) {
             view_count: notice.viewCount,
             likes_count: notice.likesCount,
             comments_count: notice.commentsCount,
+            is_banner: notice.isBanner,
             is_hidden: notice.isHidden,
             user_id: notice.userId,
           }}

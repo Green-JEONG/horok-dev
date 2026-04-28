@@ -8,6 +8,7 @@ export type PostRow = {
   category_id: number;
   title: string;
   content: string;
+  is_banner: boolean;
   created_at: string;
   updated_at: string;
   is_hidden: boolean;
@@ -26,6 +27,7 @@ function mapPost(post: {
   categoryId: bigint;
   title: string;
   content: string;
+  isBanner: boolean;
   createdAt: Date;
   updatedAt: Date;
   isHidden: boolean;
@@ -37,6 +39,7 @@ function mapPost(post: {
     category_id: Number(post.categoryId),
     title: post.title,
     content: post.content,
+    is_banner: post.isBanner,
     created_at: post.createdAt.toISOString(),
     updated_at: post.updatedAt.toISOString(),
     is_hidden: post.isHidden,
@@ -120,8 +123,16 @@ export async function createPost(params: {
   title: string;
   content: string;
   thumbnailUrl?: string | null;
+  isBanner?: boolean;
 }) {
-  const { userId, categoryName, title, content, thumbnailUrl = null } = params;
+  const {
+    userId,
+    categoryName,
+    title,
+    content,
+    thumbnailUrl = null,
+    isBanner = false,
+  } = params;
   const category = await ensureCategoryByName(categoryName);
 
   const post = await prisma.post.create({
@@ -131,6 +142,7 @@ export async function createPost(params: {
       title,
       content,
       thumbnail: thumbnailUrl,
+      isBanner,
     },
   });
 
@@ -158,8 +170,10 @@ export async function updatePost(params: {
   title: string;
   content: string;
   thumbnailUrl?: string | null;
+  isBanner?: boolean;
 }) {
-  const { postId, categoryName, title, content, thumbnailUrl } = params;
+  const { postId, categoryName, title, content, thumbnailUrl, isBanner } =
+    params;
   const category = categoryName
     ? await ensureCategoryByName(categoryName)
     : null;
@@ -169,6 +183,7 @@ export async function updatePost(params: {
     data: {
       title,
       content,
+      ...(isBanner !== undefined ? { isBanner } : {}),
       ...(category ? { categoryId: BigInt(category.id) } : {}),
       ...(thumbnailUrl !== undefined ? { thumbnail: thumbnailUrl } : {}),
     },
