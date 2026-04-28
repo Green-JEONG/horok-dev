@@ -17,6 +17,7 @@ type Props = {
   initialCategoryName: string;
   initialThumbnail: string | null;
   initialIsHidden: boolean;
+  initialIsBanner?: boolean;
   isOwner: boolean;
   redirectPath?: string;
   categoryLocked?: boolean;
@@ -31,6 +32,7 @@ export default function PostActions({
   initialCategoryName,
   initialThumbnail,
   initialIsHidden,
+  initialIsBanner = false,
   isOwner,
   redirectPath = "/horok-tech/feeds",
   categoryLocked = false,
@@ -170,6 +172,7 @@ export default function PostActions({
             initialContent={initialContent}
             initialCategoryName={initialCategoryName}
             initialThumbnail={initialThumbnail}
+            initialIsBanner={initialIsBanner}
             categoryLocked={categoryLocked}
             fixedTagOptions={fixedTagOptions}
             onCancel={() => {

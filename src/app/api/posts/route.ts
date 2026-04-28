@@ -30,7 +30,7 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json();
-  const { categoryName, title, content, thumbnailUrl } = body;
+  const { categoryName, title, content, thumbnailUrl, isBanner } = body;
 
   if (!categoryName || !title || !content) {
     return NextResponse.json({ message: "Invalid input" }, { status: 400 });
@@ -45,6 +45,7 @@ export async function POST(req: Request) {
     categoryName,
     title,
     content,
+    isBanner: Boolean(isBanner) && isNoticeCategoryName(categoryName),
     thumbnailUrl:
       typeof thumbnailUrl === "string" && thumbnailUrl.trim()
         ? thumbnailUrl.trim()

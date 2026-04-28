@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import MarkdownRenderer from "@/components/posts/MarkdownRenderer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { isNoticeCategoryName } from "@/lib/notice-categories";
 import {
   createPostContentImagePath,
   createPostThumbnailPath,
@@ -48,6 +49,7 @@ type PostEditorProps = {
   initialContent?: string;
   initialCategoryName?: string;
   initialThumbnail?: string | null;
+  initialIsBanner?: boolean;
   cancelLabel?: string;
   submitLabel?: string;
   submittingLabel?: string;
@@ -65,6 +67,7 @@ export default function PostEditor({
   initialContent = "",
   initialCategoryName = "",
   initialThumbnail = null,
+  initialIsBanner = false,
   cancelLabel = "취소",
   submitLabel = mode === "edit" ? "수정 저장" : "게시하기",
   submittingLabel = mode === "edit" ? "저장 중..." : "게시 중...",
@@ -98,6 +101,7 @@ export default function PostEditor({
   const [thumbnailPath, setThumbnailPath] = useState<string | null>(
     getStorageObjectPathFromPublicUrl(initialThumbnail),
   );
+  const [isBanner, setIsBanner] = useState(initialIsBanner);
   const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
   const [isUploadingContentImage, setIsUploadingContentImage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -106,6 +110,9 @@ export default function PostEditor({
   const shouldShowCategoryBadge = !(
     categoryLocked && fixedTagOptions.length > 0
   );
+  const currentCategoryName =
+    categoryLocked && fixedTagOptions.length > 0 ? selectedFixedTag : tags[0];
+  const isNoticeCategory = isNoticeCategoryName(currentCategoryName);
 
   async function removeThumbnailFromStorage(path?: string | null) {
     if (!path) return;
@@ -536,6 +543,7 @@ export default function PostEditor({
           title: trimmedTitle,
           content: trimmedContent,
           categoryName,
+          isBanner,
           thumbnailUrl,
         }),
       });
@@ -856,6 +864,18 @@ export default function PostEditor({
           )}
         </div>
       </div>
+
+      {isNoticeCategory ? (
+        <label className="flex items-center gap-2 rounded-md border border-border/70 bg-muted/20 px-3 py-3 text-sm">
+          <input
+            type="checkbox"
+            checked={isBanner}
+            onChange={(event) => setIsBanner(event.target.checked)}
+            className="h-4 w-4"
+          />
+          <span>이 공지사항을 배너에 노출</span>
+        </label>
+      ) : null}
 
       {error ? (
         <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">

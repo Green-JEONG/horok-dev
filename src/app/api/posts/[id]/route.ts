@@ -74,7 +74,8 @@ export async function PUT(
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
-  const { title, content, categoryName, thumbnailUrl } = await req.json();
+  const { title, content, categoryName, thumbnailUrl, isBanner } =
+    await req.json();
 
   if (!title || !content) {
     return NextResponse.json({ message: "Invalid input" }, { status: 400 });
@@ -89,6 +90,10 @@ export async function PUT(
     title,
     content,
     categoryName,
+    isBanner:
+      typeof isBanner === "boolean" && isNoticeCategoryName(categoryName)
+        ? isBanner
+        : false,
     thumbnailUrl:
       typeof thumbnailUrl === "string"
         ? thumbnailUrl.trim() || null
