@@ -30,6 +30,7 @@ export type DbPost = {
   view_count: number;
   likes_count: number;
   comments_count: number;
+  is_banner: boolean;
   is_hidden: boolean;
   user_id?: number;
 };
@@ -86,6 +87,7 @@ function mapPost(post: {
   thumbnail: string | null;
   createdAt: Date;
   updatedAt: Date;
+  isBanner: boolean;
   isHidden: boolean;
   userId?: bigint;
   user: { name: string | null };
@@ -105,6 +107,7 @@ function mapPost(post: {
     view_count: Number(post.views?.viewCount ?? 0),
     likes_count: post._count?.likes ?? 0,
     comments_count: post._count?.comments ?? 0,
+    is_banner: post.isBanner,
     is_hidden: post.isHidden,
     user_id: post.userId ? bigintToNumber(post.userId) : undefined,
   };

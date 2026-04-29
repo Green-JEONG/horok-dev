@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
+import { seedLegacyBannerNotices } from "@/lib/notices";
 import { createPost, deletePost, updatePost } from "@/lib/posts";
 import { prisma } from "@/lib/prisma";
 
@@ -226,6 +228,22 @@ export default async function AdminPage() {
     });
   }
 
+  async function seedLegacyBannerNoticesAction() {
+    "use server";
+    const session = await auth();
+    if (!session || session.user.role !== "ADMIN" || !session.user.email) return;
+
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { id: true },
+    });
+    if (!user) return;
+
+    await seedLegacyBannerNotices(Number(user.id));
+    revalidatePath("/");
+    revalidatePath("/horok-tech/notices");
+  }
+
   return (
     <main className="mx-auto max-w-6xl space-y-10 px-4 py-10">
       <header className="flex items-end justify-between gap-4">
@@ -239,6 +257,23 @@ export default async function AdminPage() {
           로그인: <span className="font-medium">{session.user.email}</span>
         </div>
       </header>
+
+      <section className="rounded-2xl border bg-background p-6">
+        <h2 className="mb-4 text-lg font-semibold">공지/배너 시드</h2>
+        <p className="mb-4 text-sm text-muted-foreground">
+          기존 배너 문구 2개를 공지사항 게시물로 저장합니다. 이미 같은 제목의
+          공지가 있으면 중복 생성하지 않습니다.
+        </p>
+
+        <form action={seedLegacyBannerNoticesAction}>
+          <button
+            type="submit"
+            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+          >
+            기존 배너 문구를 공지로 저장
+          </button>
+        </form>
+      </section>
 
       <section className="rounded-2xl border bg-background p-6">
         <h2 className="mb-4 text-lg font-semibold">글쓰기</h2>

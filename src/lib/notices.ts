@@ -3,7 +3,9 @@ import {
   DEFAULT_SORT,
   type SortType,
 } from "@/lib/post-sort";
+import { ensureCategoryByName } from "@/lib/categories";
 import { prisma } from "@/lib/prisma";
+import { getTechNoticePath } from "@/lib/routes";
 import { NOTICE_TAG_OPTIONS, type NoticeTag } from "./notice-categories";
 
 export const LEGACY_NOTICE_SEED = [
@@ -47,6 +49,33 @@ export const LEGACY_NOTICE_SEED = [
   },
 ] as const;
 
+export const LEGACY_BANNER_NOTICE_SEED = [
+  {
+    title: "호록 기술 블로그가 2026년 1월 6일부로 개설되었어요! 많은 관심 가져 주세요.  🎉",
+    summary:
+      "호록 기술 블로그 오픈 소식을 배너에서 보셨던 문구 그대로 공지사항에도 남겨둡니다.",
+    publishedAt: "2026-01-06T00:00:00.000Z",
+    categoryName: "공지" as NoticeTag,
+    content: [
+      "호록 기술 블로그가 2026년 1월 6일부로 개설되었어요! 많은 관심 가져 주세요.  🎉",
+      "기존 배너에서 안내하던 오픈 문구를 공지사항 게시물로도 함께 보관합니다.",
+      "앞으로 서비스 오픈, 주요 변경, 운영 안내는 공지사항과 배너에 함께 반영됩니다.",
+    ],
+  },
+  {
+    title: "2026년 붉은🔥 말🐴의 해가 밝았어요. 새해 복 많이 받으세요!",
+    summary:
+      "기존 새해 배너 문구를 공지사항 게시물로 옮겨 보관합니다.",
+    publishedAt: "2026-01-01T00:00:00.000Z",
+    categoryName: "공지" as NoticeTag,
+    content: [
+      "2026년 붉은🔥 말🐴의 해가 밝았어요. 새해 복 많이 받으세요!",
+      "배너에 노출되던 새해 인사 문구도 공지사항 게시물로 함께 저장합니다.",
+      "앞으로 배너에 보여주는 운영 메시지는 가능한 한 공지사항 데이터와 같은 원본을 사용합니다.",
+    ],
+  },
+] as const;
+
 export type NoticeListItem = {
   id: number;
   title: string;
@@ -73,8 +102,15 @@ export type NoticeDetail = {
   likesCount: number;
   commentsCount: number;
   isHidden: boolean;
+  isBanner: boolean;
   userId: number;
   isPinned: boolean;
+};
+
+export type NoticeBannerItem = {
+  id: number;
+  title: string;
+  href: string;
 };
 
 function extractPlainText(markdown: string) {
@@ -173,6 +209,94 @@ export async function findNotices(sort: SortType = DEFAULT_SORT) {
     }));
 }
 
+export async function findBannerNotices(limit = 5) {
+  const notices = await prisma.post.findMany({
+    where: {
+      isDeleted: false,
+      isHidden: false,
+      isBanner: true,
+      category: {
+        is: {
+          name: {
+            in: [...NOTICE_TAG_OPTIONS],
+          },
+        },
+      },
+    },
+    include: {
+      category: {
+        select: { name: true },
+      },
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: limit,
+  });
+
+  return notices
+    .slice(0, limit)
+    .map<NoticeBannerItem>((notice) => ({
+      id: Number(notice.id),
+      title: stripLegacyNoticePrefix(notice.title),
+      href: getTechNoticePath(Number(notice.id)),
+    }));
+}
+
+export async function seedLegacyBannerNotices(userId: number) {
+  const category = await ensureCategoryByName("공지");
+  const titles = LEGACY_BANNER_NOTICE_SEED.map((notice) => notice.title);
+  const existingPosts = await prisma.post.findMany({
+    where: {
+      isDeleted: false,
+      title: {
+        in: titles,
+      },
+      categoryId: BigInt(category.id),
+    },
+    select: {
+      id: true,
+      title: true,
+      isBanner: true,
+    },
+  });
+
+  const existingTitleSet = new Set(existingPosts.map((post) => post.title));
+  const postsToUpdate = existingPosts.filter((post) => !post.isBanner);
+  const noticesToCreate = LEGACY_BANNER_NOTICE_SEED.filter(
+    (notice) => !existingTitleSet.has(notice.title),
+  );
+
+  if (postsToUpdate.length === 0 && noticesToCreate.length === 0) {
+    return { createdCount: 0, updatedCount: 0 };
+  }
+
+  await prisma.$transaction([
+    ...postsToUpdate.map((post) =>
+      prisma.post.update({
+        where: { id: post.id },
+        data: { isBanner: true },
+      }),
+    ),
+    ...noticesToCreate.map((notice) =>
+      prisma.post.create({
+        data: {
+          userId: BigInt(userId),
+          categoryId: BigInt(category.id),
+          title: notice.title,
+          content: notice.content.join("\n\n"),
+          isBanner: true,
+          createdAt: new Date(notice.publishedAt),
+          updatedAt: new Date(notice.publishedAt),
+        },
+      }),
+    ),
+  ]);
+
+  return {
+    createdCount: noticesToCreate.length,
+    updatedCount: postsToUpdate.length,
+  };
+}
+
 export async function findNoticeById(
   id: number,
   options?: {
@@ -236,6 +360,7 @@ export async function findNoticeById(
     likesCount: notice._count.likes,
     commentsCount: notice._count.comments,
     isHidden: notice.isHidden,
+    isBanner: notice.isBanner,
     userId: Number(notice.userId),
     isPinned: isPinnedNotice(notice.category.name, notice.title),
   } satisfies NoticeDetail;
