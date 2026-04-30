@@ -1,9 +1,9 @@
-import { ArrowLeft, ChevronRight, FileCode2, Sparkles } from "lucide-react";
+import { FileCode2, Sparkles } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import HorokCoteBackgroundPattern from "@/components/horok-cote/HorokCoteBackgroundPattern";
 import HorokCoteIDE from "@/components/horok-cote/HorokCoteIDE";
-import { Badge } from "@/components/ui/badge";
+import HorokCoteProblemHeader from "@/components/horok-cote/HorokCoteProblemHeader";
 import { getHorokCoteProblem, horokCoteProblems } from "@/lib/horok-cote";
 
 type HorokCoteProblemPageProps = {
@@ -14,7 +14,7 @@ type HorokCoteProblemPageProps = {
 
 export async function generateStaticParams() {
   return horokCoteProblems.map((problem) => ({
-    slug: problem.slug,
+    slug: String(problem.number),
   }));
 }
 
@@ -34,7 +34,7 @@ export async function generateMetadata({
     title: `${problem.title} | horok cote`,
     description: problem.summary,
     alternates: {
-      canonical: `/horok-cote/${problem.slug}`,
+      canonical: `/horok-cote/${problem.number}`,
     },
   };
 }
@@ -50,67 +50,15 @@ export default async function HorokCoteProblemPage({
   }
 
   return (
-    <main className="h-dvh overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(112,209,149,0.18),_transparent_28%),linear-gradient(180deg,_#f8fff9_0%,_#f5fbff_48%,_#f8fafc_100%)] px-4 py-6 text-slate-900 sm:px-6 lg:px-10">
-      <div className="mx-auto flex h-full max-w-[1440px] flex-col">
-        <section className="flex h-full min-h-0 flex-col rounded-[32px] border border-slate-200 bg-white/90 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.05)] sm:p-6">
-          <div className="flex flex-col gap-5">
-            <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
-              <Link
-                href="/horok-cote"
-                className="inline-flex items-center gap-1 transition hover:text-slate-900"
-              >
-                <ArrowLeft className="size-4" />
-                문제 목록으로
-              </Link>
-              <span className="hidden text-slate-300 sm:inline">/</span>
-              <span>horok cote</span>
-              <ChevronRight className="hidden size-4 text-slate-300 sm:inline" />
-              <span className="font-medium text-slate-900">
-                {problem.title}
-              </span>
-            </div>
-
-            <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 lg:flex-row lg:items-end lg:justify-between">
-              <div className="space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge className="bg-slate-950 text-white hover:bg-slate-950">
-                    {problem.level}
-                  </Badge>
-                  <Badge variant="outline">{problem.category}</Badge>
-                  {problem.tags.map((tag) => (
-                    <Badge key={tag} variant="secondary">
-                      #{tag}
-                    </Badge>
-                  ))}
-                </div>
-                <div className="space-y-2">
-                  <h1 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
-                    {problem.title}
-                  </h1>
-                  <p className="max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
-                    {problem.summary}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <p className="text-xs text-slate-500">권장 시간</p>
-                  <p className="mt-1 text-lg font-bold">{problem.duration}</p>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <p className="text-xs text-slate-500">정답률</p>
-                  <p className="mt-1 text-lg font-bold">
-                    {problem.acceptanceRate}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <p className="text-xs text-slate-500">지원 언어</p>
-                  <p className="mt-1 text-lg font-bold">Python / Java</p>
-                </div>
-              </div>
-            </div>
-          </div>
+    <main className="relative h-dvh overflow-hidden bg-[#06923E] px-4 py-6 text-slate-900 sm:px-6 lg:px-10">
+      <HorokCoteBackgroundPattern />
+      <div className="relative mx-auto flex h-full max-w-[1440px] flex-col">
+        <section className="flex h-full min-h-0 flex-col rounded-[32px] border border-slate-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.05)] sm:p-6">
+          <HorokCoteProblemHeader
+            level={problem.level}
+            number={problem.number}
+            title={problem.title}
+          />
 
           <div className="mt-5 grid min-h-0 flex-1 gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(540px,1.05fr)]">
             <section className="scrollbar-hide min-h-0 overflow-y-auto rounded-[26px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-5">

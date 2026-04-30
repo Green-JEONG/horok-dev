@@ -49,7 +49,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.7,
     },
     ...horokCoteProblems.map((problem) => ({
-      url: `${baseUrl}/horok-cote/${problem.slug}`,
+      url: `${baseUrl}/horok-cote/${problem.number}`,
       lastModified: new Date(),
       changeFrequency: "monthly" as const,
       priority: 0.6,

@@ -1,20 +1,14 @@
 "use client";
 
-import {
-  CheckCircle2,
-  CircleDashed,
-  Clock3,
-  Code2,
-  Play,
-  TerminalSquare,
-} from "lucide-react";
-import Link from "next/link";
+import { Code2, Play } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { HorokCoteProblem } from "@/lib/horok-cote";
 import { cn } from "@/lib/utils";
 
-type Language = "python" | "java";
+type Language = "python" | "java" | "cpp";
+
+type RunResult = "idle" | "success" | "failure";
 
 type HorokCoteIDEProps = {
   problem: HorokCoteProblem;
@@ -44,13 +38,33 @@ const languageMeta: Record<
     badgeClassName: "bg-sky-100 text-sky-700",
     tabClassName: "bg-[#f8fafc] text-sky-700",
   },
+  cpp: {
+    label: "C++17",
+    runtime: "cpp17",
+    fileName: "main.cpp",
+    badgeClassName: "bg-violet-100 text-violet-700",
+    tabClassName: "bg-violet-50 text-violet-700",
+  },
 };
 
 export default function HorokCoteIDE({ problem }: HorokCoteIDEProps) {
   const [selectedLanguage, setSelectedLanguage] = useState<Language>("python");
   const [editedCodes, setEditedCodes] = useState(problem.starterCodes);
+  const [runResult, setRunResult] = useState<RunResult>("idle");
   const currentLanguage = languageMeta[selectedLanguage];
   const code = editedCodes[selectedLanguage];
+  const lineCount = Math.max(code.split("\n").length, 12);
+  const lineNumbers = Array.from(
+    { length: lineCount },
+    (_, index) => index + 1,
+  );
+
+  function handleRun() {
+    const normalizedCode = code.replace(/\s+/g, " ").trim();
+    const isSuccess = normalizedCode.includes("Hello, Horok!");
+
+    setRunResult(isSuccess ? "success" : "failure");
+  }
 
   return (
     <section className="flex min-h-0 flex-col overflow-hidden rounded-[26px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)]">
@@ -58,52 +72,52 @@ export default function HorokCoteIDE({ problem }: HorokCoteIDEProps) {
         <div className="flex items-center gap-2 text-sm text-slate-700">
           <Code2 className="size-4 text-[#44bb68]" />
           <span className="font-semibold">horok IDE</span>
-          <span className="text-slate-400">{currentLanguage.fileName}</span>
+          <span className="text-slate-400">
+            {currentLanguage.fileName} | {currentLanguage.label}
+          </span>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
-            <Clock3 className="size-4" />
-            임시 저장
-          </Button>
-          <Button
-            size="sm"
-            className="bg-[#44bb68] text-white hover:bg-[#389d58]"
-          >
-            <Play className="size-4" />
-            실행
-          </Button>
-        </div>
+        <Button
+          size="sm"
+          onClick={handleRun}
+          className="bg-[#44bb68] text-white hover:bg-[#389d58]"
+        >
+          <Play className="size-4" />
+          실행
+        </Button>
       </div>
 
-      <div className="grid min-h-0 flex-1 xl:grid-cols-[1fr_340px]">
-        <div className="border-b border-slate-200 xl:border-r xl:border-b-0">
-          <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-500">
-            <div className="flex flex-wrap items-center gap-2">
-              {(["python", "java"] as Language[]).map((language) => {
-                const meta = languageMeta[language];
-                const isActive = selectedLanguage === language;
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-500">
+          <div className="flex flex-wrap items-center gap-2">
+            {(["python", "java", "cpp"] as Language[]).map((language) => {
+              const meta = languageMeta[language];
+              const isActive = selectedLanguage === language;
 
-                return (
-                  <button
-                    key={language}
-                    type="button"
-                    onClick={() => setSelectedLanguage(language)}
-                    className={cn(
-                      "rounded-full px-3 py-1 font-medium transition",
-                      isActive
-                        ? meta.badgeClassName
-                        : "bg-slate-200 text-slate-600 hover:bg-slate-300 hover:text-slate-800",
-                    )}
-                  >
-                    {meta.label}
-                  </button>
-                );
-              })}
-            </div>
-            <span>{currentLanguage.label} 선택됨</span>
+              return (
+                <button
+                  key={language}
+                  type="button"
+                  onClick={() => {
+                    setSelectedLanguage(language);
+                    setRunResult("idle");
+                  }}
+                  className={cn(
+                    "rounded-full px-3 py-1 font-medium transition",
+                    isActive
+                      ? meta.badgeClassName
+                      : "bg-slate-200 text-slate-600 hover:bg-slate-300 hover:text-slate-800",
+                  )}
+                >
+                  {meta.label}
+                </button>
+              );
+            })}
           </div>
+          <span>{currentLanguage.label} 선택됨</span>
+        </div>
 
-          <div>
+        <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto]">
+          <div className="min-h-0 overflow-hidden">
             <div
               className={cn(
                 "border-b border-slate-200 px-4 py-2 text-xs font-medium sm:px-5",
@@ -112,91 +126,70 @@ export default function HorokCoteIDE({ problem }: HorokCoteIDEProps) {
             >
               {currentLanguage.fileName}
             </div>
-            <textarea
-              value={code}
-              onChange={(event) =>
-                setEditedCodes((current) => ({
-                  ...current,
-                  [selectedLanguage]: event.target.value,
-                }))
-              }
-              spellCheck={false}
-              className="h-[calc(100dvh-23rem)] min-h-[320px] w-full resize-none bg-white px-4 py-5 font-mono text-[13px] leading-6 text-slate-800 outline-none sm:px-5 xl:h-[calc(100dvh-18rem)]"
-              aria-label={`${currentLanguage.label} 코드 에디터`}
-            />
-          </div>
-        </div>
 
-        <div className="grid min-h-0 grid-rows-[auto_auto_1fr] bg-slate-50">
-          <div className="border-b border-slate-200 px-4 py-4 sm:px-5">
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-              <TerminalSquare className="size-4 text-sky-600" />
-              테스트 케이스
-            </div>
-            <div className="mt-4 max-h-[220px] space-y-3 overflow-y-auto pr-1">
-              {problem.testCases.map((testCase) => (
-                <div
-                  key={testCase.name}
-                  className="rounded-2xl border border-slate-200 bg-white p-3"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-medium text-slate-900">
-                      {testCase.name}
-                    </p>
-                    <span className="inline-flex items-center gap-1 text-xs text-slate-500">
-                      {testCase.status === "passed" ? (
-                        <CheckCircle2 className="size-4 text-emerald-400" />
-                      ) : (
-                        <CircleDashed className="size-4 text-amber-300" />
-                      )}
-                      {testCase.status === "passed" ? "통과" : "대기"}
-                    </span>
+            <div className="grid h-full min-h-0 grid-cols-[56px_minmax(0,1fr)] bg-white">
+              <div className="border-r border-slate-200 bg-slate-50 px-2 py-5 font-mono text-[13px] leading-6 text-slate-400">
+                {lineNumbers.map((lineNumber) => (
+                  <div key={lineNumber} className="text-right">
+                    {lineNumber}
                   </div>
-                  <div className="mt-3 space-y-2 text-xs leading-5 text-slate-600">
-                    <p>
-                      <span className="text-slate-500">입력:</span>{" "}
-                      {testCase.input}
-                    </p>
-                    <p>
-                      <span className="text-slate-500">기대값:</span>{" "}
-                      {testCase.expected}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="border-b border-slate-200 px-4 py-4 sm:px-5">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-slate-900">출력 콘솔</p>
-              <span className="text-xs text-slate-400">최근 실행 2초 전</span>
-            </div>
-            <div className="mt-3 rounded-2xl bg-[#0f172a] p-3 font-mono text-xs leading-6 text-emerald-300">
-              {">"} selected runtime: {currentLanguage.runtime}
-              {"\n"}
-              {">"} sample tests passed: 1 / {problem.testCases.length}
-              {"\n"}
-              {">"} ready to submit
-            </div>
-          </div>
-
-          <div className="flex min-h-0 flex-col justify-between px-4 py-4 sm:px-5">
-            <div className="space-y-3">
-              <p className="text-sm font-semibold text-slate-900">진행 힌트</p>
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-slate-700">
-                입력 크기를 먼저 보고 정렬, 해시, 스택처럼 필요한 도구를 고른 뒤
-                구현 순서를 작게 나누면 훨씬 안정적으로 풀 수 있어요.
+                ))}
               </div>
+              <textarea
+                value={code}
+                onChange={(event) => {
+                  setEditedCodes((current) => ({
+                    ...current,
+                    [selectedLanguage]: event.target.value,
+                  }));
+                  setRunResult("idle");
+                }}
+                spellCheck={false}
+                className="h-full min-h-[360px] w-full resize-none bg-white px-4 py-5 font-mono text-[13px] leading-6 text-slate-800 outline-none"
+                aria-label={`${currentLanguage.label} 코드 에디터`}
+              />
             </div>
+          </div>
 
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <Button variant="outline" asChild>
-                <Link href="/horok-cote">다른 문제 보기</Link>
-              </Button>
-              <Button className="bg-slate-950 text-white hover:bg-slate-800">
-                제출하기
-              </Button>
+          <div className="border-t border-slate-200 bg-slate-50 px-4 py-4 sm:px-5">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-slate-900">실행 결과</p>
+              <span
+                className={cn(
+                  "rounded-full px-3 py-1 text-xs font-medium",
+                  runResult === "success"
+                    ? "bg-emerald-100 text-emerald-700"
+                    : runResult === "failure"
+                      ? "bg-rose-100 text-rose-700"
+                      : "bg-slate-200 text-slate-600",
+                )}
+              >
+                {runResult === "success"
+                  ? "성공"
+                  : runResult === "failure"
+                    ? "실패"
+                    : "대기 중"}
+              </span>
+            </div>
+            <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-3 text-sm text-slate-700">
+              {runResult === "success" && (
+                <p>
+                  정답 형식으로 보입니다. 현재 코드에서 `Hello, Horok!` 출력이
+                  확인되었습니다.
+                </p>
+              )}
+              {runResult === "failure" && (
+                <p>
+                  실패했습니다. `Hello, Horok!` 문장을 정확히 출력하도록 코드를
+                  수정해 보세요.
+                </p>
+              )}
+              {runResult === "idle" && (
+                <p>
+                  코드를 작성한 뒤 실행 버튼을 누르면 성공 또는 실패가
+                  표시됩니다.
+                </p>
+              )}
             </div>
           </div>
         </div>

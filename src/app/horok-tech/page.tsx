@@ -12,7 +12,7 @@ import { getRandomPosts } from "@/lib/queries";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "호록 기술 블로그 | c.horok",
+  title: "호록 기술 블로그 | horok-tech",
   description: "호록 기술 블로그 메인 페이지",
   alternates: {
     canonical: "/horok-tech",
