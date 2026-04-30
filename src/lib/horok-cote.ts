@@ -1,4 +1,5 @@
 export type HorokCoteProblem = {
+  number: number;
   slug: string;
   title: string;
   level: string;
@@ -18,6 +19,7 @@ export type HorokCoteProblem = {
   starterCodes: {
     python: string;
     java: string;
+    cpp: string;
   };
   testCases: Array<{
     name: string;
@@ -28,8 +30,18 @@ export type HorokCoteProblem = {
   tags: string[];
 };
 
+export const HOROK_COTE_LEVELS = [
+  "Lv.0",
+  "Lv.1",
+  "Lv.2",
+  "Lv.3",
+  "Lv.4",
+  "Lv.5",
+] as const;
+
 export const horokCoteProblems: HorokCoteProblem[] = [
   {
+    number: 0,
     slug: "print-hello-horok",
     title: "화면에 문장 출력하기",
     level: "Lv.0",
@@ -62,6 +74,14 @@ export const horokCoteProblems: HorokCoteProblem[] = [
     }
 }
 `,
+      cpp: `#include <iostream>
+using namespace std;
+
+int main() {
+    cout << "Hello, Horok!" << '\\n';
+    return 0;
+}
+`,
     },
     testCases: [
       {
@@ -81,6 +101,16 @@ export const horokCoteProblems: HorokCoteProblem[] = [
   },
 ];
 
-export function getHorokCoteProblem(slug: string) {
-  return horokCoteProblems.find((problem) => problem.slug === slug);
+export function getHorokCoteProblemByNumber(number: number) {
+  return horokCoteProblems.find((problem) => problem.number === number);
+}
+
+export function getHorokCoteProblem(problemId: string) {
+  const problemNumber = Number(problemId);
+
+  if (!Number.isNaN(problemNumber)) {
+    return getHorokCoteProblemByNumber(problemNumber);
+  }
+
+  return horokCoteProblems.find((problem) => problem.slug === problemId);
 }
