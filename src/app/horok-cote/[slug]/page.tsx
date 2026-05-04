@@ -53,7 +53,7 @@ export default async function HorokCoteProblemPage({
     <main className="relative h-dvh overflow-hidden bg-[#06923E] px-4 py-6 text-slate-900 sm:px-6 lg:px-10">
       <HorokCoteBackgroundPattern />
       <div className="relative mx-auto flex h-full max-w-[1440px] flex-col">
-        <section className="flex h-full min-h-0 flex-col rounded-[32px] border border-slate-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.05)] sm:p-6">
+        <section className="flex h-full min-h-0 flex-col rounded-[32px] border border-slate-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.05)] transition-colors dark:border-slate-800 dark:bg-slate-950 dark:shadow-[0_22px_60px_rgba(2,6,23,0.45)] sm:p-6">
           <HorokCoteProblemHeader
             level={problem.level}
             number={problem.number}
@@ -61,41 +61,45 @@ export default async function HorokCoteProblemPage({
           />
 
           <div className="mt-5 grid min-h-0 flex-1 gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(540px,1.05fr)]">
-            <section className="scrollbar-hide min-h-0 overflow-y-auto rounded-[26px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-5">
+            <section className="scrollbar-hide min-h-0 overflow-y-auto rounded-[26px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-5 dark:border-slate-800 dark:bg-[linear-gradient(180deg,#111827_0%,#0f172a_100%)]">
               <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm font-semibold text-slate-500">
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
                   <FileCode2 className="size-4" />
                   문제 설명
                 </div>
-                <p className="text-sm leading-7 text-slate-700 sm:text-[15px]">
+                <p className="text-sm leading-7 text-slate-700 dark:text-slate-300 sm:text-[15px]">
                   {problem.prompt}
                 </p>
               </div>
 
               <div className="grid gap-4 md:grid-cols-3">
-                <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4 md:col-span-1">
-                  <h2 className="text-sm font-semibold text-slate-900">
+                <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4 md:col-span-1 dark:border-slate-800 dark:bg-slate-900">
+                  <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
                     제한사항
                   </h2>
-                  <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
+                  <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
                     {problem.constraints.map((constraint) => (
                       <li key={constraint}>{constraint}</li>
                     ))}
                   </ul>
                 </article>
 
-                <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4 md:col-span-1">
-                  <h2 className="text-sm font-semibold text-slate-900">입력</h2>
-                  <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
+                <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4 md:col-span-1 dark:border-slate-800 dark:bg-slate-900">
+                  <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                    입력
+                  </h2>
+                  <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
                     {problem.inputDescription.map((line) => (
                       <li key={line}>{line}</li>
                     ))}
                   </ul>
                 </article>
 
-                <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4 md:col-span-1">
-                  <h2 className="text-sm font-semibold text-slate-900">출력</h2>
-                  <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
+                <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4 md:col-span-1 dark:border-slate-800 dark:bg-slate-900">
+                  <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                    출력
+                  </h2>
+                  <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
                     {problem.outputDescription.map((line) => (
                       <li key={line}>{line}</li>
                     ))}
@@ -104,37 +108,37 @@ export default async function HorokCoteProblemPage({
               </div>
 
               <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm font-semibold text-slate-500">
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
                   <Sparkles className="size-4" />
                   예제
                 </div>
                 {problem.examples.map((example, index) => (
                   <article
                     key={`${problem.slug}-${index + 1}`}
-                    className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                    className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900"
                   >
-                    <h3 className="text-sm font-semibold text-slate-900">
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
                       예제 {index + 1}
                     </h3>
                     <div className="mt-3 grid gap-3 md:grid-cols-2">
-                      <div className="rounded-xl bg-white p-3">
-                        <p className="text-xs font-medium text-slate-500">
+                      <div className="rounded-xl bg-white p-3 dark:bg-slate-950">
+                        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                           입력
                         </p>
-                        <pre className="mt-2 overflow-x-auto font-mono text-xs leading-6 text-slate-700">
+                        <pre className="mt-2 overflow-x-auto font-mono text-xs leading-6 text-slate-700 dark:text-slate-300">
                           {example.input}
                         </pre>
                       </div>
-                      <div className="rounded-xl bg-white p-3">
-                        <p className="text-xs font-medium text-slate-500">
+                      <div className="rounded-xl bg-white p-3 dark:bg-slate-950">
+                        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                           출력
                         </p>
-                        <pre className="mt-2 overflow-x-auto font-mono text-xs leading-6 text-slate-700">
+                        <pre className="mt-2 overflow-x-auto font-mono text-xs leading-6 text-slate-700 dark:text-slate-300">
                           {example.output}
                         </pre>
                       </div>
                     </div>
-                    <p className="mt-3 text-sm leading-6 text-slate-600">
+                    <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
                       {example.explanation}
                     </p>
                   </article>

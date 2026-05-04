@@ -67,12 +67,12 @@ export default function HorokCoteIDE({ problem }: HorokCoteIDEProps) {
   }
 
   return (
-    <section className="flex min-h-0 flex-col overflow-hidden rounded-[26px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)]">
-      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-5">
-        <div className="flex items-center gap-2 text-sm text-slate-700">
+    <section className="flex min-h-0 flex-col overflow-hidden rounded-[26px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] dark:border-slate-800 dark:bg-[linear-gradient(180deg,#111827_0%,#0f172a_100%)]">
+      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800 sm:px-5">
+        <div className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
           <Code2 className="size-4 text-[#44bb68]" />
           <span className="font-semibold">horok IDE</span>
-          <span className="text-slate-400">
+          <span className="text-slate-400 dark:text-slate-500">
             {currentLanguage.fileName} | {currentLanguage.label}
           </span>
         </div>
@@ -87,7 +87,7 @@ export default function HorokCoteIDE({ problem }: HorokCoteIDEProps) {
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-500">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
           <div className="flex flex-wrap items-center gap-2">
             {(["python", "java", "cpp"] as Language[]).map((language) => {
               const meta = languageMeta[language];
@@ -105,7 +105,7 @@ export default function HorokCoteIDE({ problem }: HorokCoteIDEProps) {
                     "rounded-full px-3 py-1 font-medium transition",
                     isActive
                       ? meta.badgeClassName
-                      : "bg-slate-200 text-slate-600 hover:bg-slate-300 hover:text-slate-800",
+                      : "bg-slate-200 text-slate-600 hover:bg-slate-300 hover:text-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100",
                   )}
                 >
                   {meta.label}
@@ -118,17 +118,8 @@ export default function HorokCoteIDE({ problem }: HorokCoteIDEProps) {
 
         <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto]">
           <div className="min-h-0 overflow-hidden">
-            <div
-              className={cn(
-                "border-b border-slate-200 px-4 py-2 text-xs font-medium sm:px-5",
-                currentLanguage.tabClassName,
-              )}
-            >
-              {currentLanguage.fileName}
-            </div>
-
-            <div className="grid h-full min-h-0 grid-cols-[56px_minmax(0,1fr)] bg-white">
-              <div className="border-r border-slate-200 bg-slate-50 px-2 py-5 font-mono text-[13px] leading-6 text-slate-400">
+            <div className="grid h-full min-h-0 grid-cols-[56px_minmax(0,1fr)] bg-white dark:bg-slate-950">
+              <div className="border-r border-slate-200 bg-slate-50 px-2 py-5 font-mono text-[13px] leading-6 text-slate-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-500">
                 {lineNumbers.map((lineNumber) => (
                   <div key={lineNumber} className="text-right">
                     {lineNumber}
@@ -145,15 +136,17 @@ export default function HorokCoteIDE({ problem }: HorokCoteIDEProps) {
                   setRunResult("idle");
                 }}
                 spellCheck={false}
-                className="h-full min-h-[360px] w-full resize-none bg-white px-4 py-5 font-mono text-[13px] leading-6 text-slate-800 outline-none"
+                className="h-full min-h-[360px] w-full resize-none bg-white px-4 py-5 font-mono text-[13px] leading-6 text-slate-800 outline-none dark:bg-slate-950 dark:text-slate-100"
                 aria-label={`${currentLanguage.label} 코드 에디터`}
               />
             </div>
           </div>
 
-          <div className="border-t border-slate-200 bg-slate-50 px-4 py-4 sm:px-5">
+          <div className="border-t border-slate-200 bg-slate-50 px-4 py-4 dark:border-slate-800 dark:bg-slate-900 sm:px-5">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-slate-900">실행 결과</p>
+              <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                실행 결과
+              </p>
               <span
                 className={cn(
                   "rounded-full px-3 py-1 text-xs font-medium",
@@ -171,7 +164,7 @@ export default function HorokCoteIDE({ problem }: HorokCoteIDEProps) {
                     : "대기 중"}
               </span>
             </div>
-            <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-3 text-sm text-slate-700">
+            <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
               {runResult === "success" && (
                 <p>
                   정답 형식으로 보입니다. 현재 코드에서 `Hello, Horok!` 출력이
