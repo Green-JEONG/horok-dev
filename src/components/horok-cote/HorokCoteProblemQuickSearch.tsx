@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { horokCoteProblems } from "@/lib/horok-cote";
@@ -74,23 +74,34 @@ export default function HorokCoteProblemQuickSearch({
 
   if (!isEditing) {
     return (
-      <>
-        <button
-          type="button"
-          onDoubleClick={() => setIsEditing(true)}
-          className="font-semibold text-slate-950 outline-none dark:text-slate-50"
-        >
-          {number}번
-        </button>
-        <ChevronRight className="size-4 text-slate-300 dark:text-slate-600" />
-        <button
-          type="button"
-          onDoubleClick={() => setIsEditing(true)}
-          className="font-semibold text-slate-950 outline-none dark:text-slate-50"
-        >
-          {title}
-        </button>
-      </>
+      <div className="relative inline-flex">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onDoubleClick={() => setIsEditing(true)}
+            className="cursor-text text-sm font-semibold text-slate-950 outline-none dark:text-slate-50"
+          >
+            {number}번
+          </button>
+          <button
+            type="button"
+            onDoubleClick={() => setIsEditing(true)}
+            className="cursor-text text-sm text-slate-600 outline-none dark:text-slate-300"
+          >
+            {title}
+          </button>
+        </div>
+        <div className="pointer-events-none absolute left-1 top-[calc(100%+8px)] z-20">
+          <button
+            type="button"
+            onDoubleClick={() => setIsEditing(true)}
+            className="pointer-events-auto relative whitespace-nowrap rounded-2xl bg-[#06923E] px-2.5 py-1 text-[11px] font-medium text-white shadow-lg transition hover:bg-[#047a33]"
+          >
+            더블클릭해 검색
+            <span className="absolute bottom-full left-3 h-0 w-0 border-x-[6px] border-b-[8px] border-x-transparent border-b-[#06923E]" />
+          </button>
+        </div>
+      </div>
     );
   }
 
